@@ -1,0 +1,12 @@
+[
+  {
+    "directory": "/home/mouhamed/dev/nes/cpu",
+    "file": "cpu.c",
+    "command": "clang -x c -c cpu.c -o cpu.o"
+  },
+  {
+    "directory": "/home/mouhamed/dev/nes",
+    "file": "main.c",
+    "command": "clang -x c -I cpu -L cpu main.c -l6502 -o nes"
+  }
+]
