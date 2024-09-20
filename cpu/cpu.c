@@ -5,86 +5,187 @@
 
 #define RESET_VECTOR_LOW 0xFFFA
 
+struct Cpu {
+  BYTE stackPtr;
+  WORD programCounter;
+  BYTE accumulator, x, y;
+
+  union {
+    struct {
+      BYTE carry: 1;
+      BYTE zero: 1;
+      BYTE interruptDisable: 1;
+      BYTE decimalMode: 1;
+      BYTE breake: 1;
+      BYTE overflow: 1;
+      BYTE negative: 1;
+      BYTE unused: 1;
+    };
+    BYTE reset;
+  };
+    
+  uint8_t cycles;
+  WORD addressAbsolute;
+  WORD addressReletive;
+  BYTE fetched;
+
+  Readfun read;
+  Writefun write;
+};
 typedef struct {
   const char* name;
-  BYTE (*operate)(void);
-  BYTE (*addrmode)(void);
+  BYTE (*operate)(Cpu*);
+  BYTE (*addrmode)(Cpu*);
   BYTE cycels;
 } Instruction;
 
-// INSTRUCTIONS
-BYTE ADC() { printf("Unimplemented\n"); return 0; }
-BYTE AND() { printf("Unimplemented\n"); return 0; }
-BYTE ASL() { printf("Unimplemented\n"); return 0; }
-BYTE BCC() { printf("Unimplemented\n"); return 0; }
-BYTE BCS() { printf("Unimplemented\n"); return 0; }
-BYTE BEQ() { printf("Unimplemented\n"); return 0; }
-BYTE BIT() { printf("Unimplemented\n"); return 0; }
-BYTE BMI() { printf("Unimplemented\n"); return 0; }
-BYTE BNE() { printf("Unimplemented\n"); return 0; }
-BYTE BPL() { printf("Unimplemented\n"); return 0; }
-BYTE BRK() { printf("Unimplemented\n"); return 0; }
-BYTE BVC() { printf("Unimplemented\n"); return 0; }
-BYTE BVS() { printf("Unimplemented\n"); return 0; }
-BYTE CLC() { printf("Unimplemented\n"); return 0; }
-BYTE CLD() { printf("Unimplemented\n"); return 0; }
-BYTE CLI() { printf("Unimplemented\n"); return 0; }
-BYTE CLV() { printf("Unimplemented\n"); return 0; }
-BYTE CMP() { printf("Unimplemented\n"); return 0; }
-BYTE CPX() { printf("Unimplemented\n"); return 0; }
-BYTE CPY() { printf("Unimplemented\n"); return 0; }
-BYTE DEC() { printf("Unimplemented\n"); return 0; }
-BYTE DEX() { printf("Unimplemented\n"); return 0; }
-BYTE DEY() { printf("Unimplemented\n"); return 0; }
-BYTE EOR() { printf("Unimplemented\n"); return 0; }
-BYTE INC() { printf("Unimplemented\n"); return 0; }
-BYTE INX() { printf("Unimplemented\n"); return 0; }
-BYTE INY() { printf("Unimplemented\n"); return 0; }
-BYTE JMP() { printf("Unimplemented\n"); return 0; }
-BYTE JSR() { printf("Unimplemented\n"); return 0; }
-BYTE LDA() { printf("Unimplemented\n"); return 0; }
-BYTE LDX() { printf("Unimplemented\n"); return 0; }
-BYTE LDY() { printf("Unimplemented\n"); return 0; }
-BYTE LSR() { printf("Unimplemented\n"); return 0; }
-BYTE NOP() { printf("Unimplemented\n"); return 0; }
-BYTE ORA() { printf("Unimplemented\n"); return 0; }
-BYTE PHP() { printf("Unimplemented\n"); return 0; }
-BYTE PLA() { printf("Unimplemented\n"); return 0; }
-BYTE PLP() { printf("Unimplemented\n"); return 0; }
-BYTE ROL() { printf("Unimplemented\n"); return 0; }
-BYTE ROR() { printf("Unimplemented\n"); return 0; }
-BYTE RTI() { printf("Unimplemented\n"); return 0; }
-BYTE RTS() { printf("Unimplemented\n"); return 0; }
-BYTE SBC() { printf("Unimplemented\n"); return 0; }
-BYTE SEC() { printf("Unimplemented\n"); return 0; }
-BYTE SED() { printf("Unimplemented\n"); return 0; }
-BYTE SEI() { printf("Unimplemented\n"); return 0; }
-BYTE STA() { printf("Unimplemented\n"); return 0; }
-BYTE STX() { printf("Unimplemented\n"); return 0; }
-BYTE STY() { printf("Unimplemented\n"); return 0; }
-BYTE TAX() { printf("Unimplemented\n"); return 0; }
-BYTE TAY() { printf("Unimplemented\n"); return 0; }
-BYTE TSX() { printf("Unimplemented\n"); return 0; }
-BYTE TXA() { printf("Unimplemented\n"); return 0; }
-BYTE TXS() { printf("Unimplemented\n"); return 0; }
-BYTE TYA() { printf("Unimplemented\n"); return 0; }
-BYTE PHA() { printf("Unimplemented\n"); return 0; }
+static BYTE fetch(Cpu* cpu) {
+  cpu->fetched = cpu->read(cpu->programCounter++);
+  return cpu->fetched;
+}
 
-BYTE XXX() { printf("Illegal Oppcode\n"); return 0; }
+// INSTRUCTIONS
+BYTE ADC(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE AND(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE ASL(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE BCC(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE BCS(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE BEQ(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE BIT(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE BMI(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE BNE(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE BPL(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE BRK(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE BVC(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE BVS(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE CLC(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE CLD(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE CLI(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE CLV(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE CMP(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE CPX(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE CPY(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE DEC(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE DEX(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE DEY(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE EOR(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE INC(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE INX(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE INY(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE JMP(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE JSR(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE LDA(Cpu* cpu) { 
+   return 0; }
+BYTE LDX(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE LDY(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE LSR(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE NOP(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE ORA(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE PHP(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE PLA(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE PLP(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE ROL(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE ROR(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE RTI(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE RTS(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE SBC(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE SEC(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE SED(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE SEI(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE STA(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE STX(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE STY(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE TAX(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE TAY(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE TSX(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE TXA(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE TXS(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE TYA(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE PHA(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+
+BYTE XXX(Cpu* cpu) { printf("Illegal Oppcode\n"); return 0; }
 
 // ADDR modes
-BYTE IMP() { printf("Unimplemented\n"); return 0; }
-BYTE IMM() { printf("Unimplemented\n"); return 0; }
-BYTE ZP0() { printf("Unimplemented\n"); return 0; }
-BYTE ZPX() { printf("Unimplemented\n"); return 0; }
-BYTE ZPY() { printf("Unimplemented\n"); return 0; }
-BYTE REL() { printf("Unimplemented\n"); return 0; }
-BYTE ABS() { printf("Unimplemented\n"); return 0; }
-BYTE ABX() { printf("Unimplemented\n"); return 0; }
-BYTE ABY() { printf("Unimplemented\n"); return 0; }
-BYTE IND() { printf("Unimplemented\n"); return 0; }
-BYTE IZX() { printf("Unimplemented\n"); return 0; }
-BYTE IZY() { printf("Unimplemented\n"); return 0; }
+BYTE IMP(Cpu* cpu) { 
+  cpu->fetched = cpu->accumulator;
+  return 0;
+}
+BYTE IMM(Cpu* cpu) {
+  cpu->addressAbsolute = cpu->programCounter++; 
+  return 0;
+}
+BYTE ZP0(Cpu* cpu) { 
+  BYTE lsb = fetch(cpu);
+  cpu->addressAbsolute = (lsb & 0x00FF);
+  return 0;
+}
+BYTE ZPX(Cpu* cpu) {
+  cpu->addressAbsolute = ((fetch(cpu) + cpu->x) & 0x00FF);
+  return 0;
+}
+BYTE ZPY(Cpu* cpu) {
+  cpu->addressAbsolute = ((fetch(cpu) + cpu->y) & 0x00FF);
+  return 0;
+}
+BYTE REL(Cpu* cpu) {
+  cpu->addressReletive = fetch(cpu);
+  if(cpu->addressReletive & 0x80) {
+    cpu->addressReletive |= 0xFF00;
+  }
+  return 0;
+}
+BYTE ABS(Cpu* cpu) {
+  BYTE addressLow = fetch(cpu);
+  BYTE addressHigh = fetch(cpu);
+  cpu->addressAbsolute = (addressHigh << 8) | addressLow;
+  return 0;
+}
+BYTE ABX(Cpu* cpu) {
+  BYTE addressLow = fetch(cpu);
+  BYTE addressHigh = fetch(cpu);
+  cpu->addressAbsolute = (addressHigh << 8) | addressLow;
+  cpu->addressAbsolute += cpu->x;
+  
+  if (cpu->addressAbsolute >> 8 != addressHigh) {
+    return 1;
+  }
+  return 0;
+}
+BYTE ABY(Cpu* cpu) {
+  printf("Unimplemented\n");
+  return 0;
+}
+BYTE IND(Cpu* cpu) {
+  BYTE ptrLow = fetch(cpu);
+  BYTE ptrHigh = fetch(cpu);
+  WORD ptr = (ptrHigh << 8) | ptrLow;
+  
+  cpu->addressAbsolute = (cpu->read(ptr + 1) << 8) | cpu->read(ptr);
+  return 0;
+}
+BYTE IZX(Cpu* cpu) {
+  BYTE table = fetch(cpu);
+  
+  BYTE addrLow = cpu->read((WORD)(table + cpu->x) & 0x00FF);
+  BYTE addrHigh = cpu->read((WORD)(table + cpu->x + 1) & 0x00FF);
+  
+  cpu->addressAbsolute = (addrHigh << 8) | addrLow;
+  return 0;
+}
+BYTE IZY(Cpu* cpu) {
+  BYTE table = fetch(cpu);
+  
+  BYTE addrLow = cpu->read((WORD)(table) & 0x00FF);
+  BYTE addrHigh = cpu->read((WORD)(table + 1) & 0x00FF);
+  
+  cpu->addressAbsolute = ((addrHigh << 8) | addrLow) + cpu->y;
+
+  if(cpu->addressAbsolute >> 8 != addrHigh) {
+    return 1;
+  }
+
+  return 0;
+}
 
 static const Instruction INSTRUCTIONS_LOOKUP_TABLE[] = {
   { "BRK", BRK, IMM, 7 },{ "ORA", ORA, IZX, 6 },{ "???", XXX, IMP, 2 },{ "???", XXX, IMP, 8 },{ "???", NOP, IMP, 3 },{ "ORA", ORA, ZP0, 3 },{ "ASL", ASL, ZP0, 5 },{ "???", XXX, IMP, 5 },{ "PHP", PHP, IMP, 3 },{ "ORA", ORA, IMM, 2 },{ "ASL", ASL, IMP, 2 },{ "???", XXX, IMP, 2 },{ "???", NOP, IMP, 4 },{ "ORA", ORA, ABS, 4 },{ "ASL", ASL, ABS, 6 },{ "???", XXX, IMP, 6 },
@@ -105,43 +206,19 @@ static const Instruction INSTRUCTIONS_LOOKUP_TABLE[] = {
   { "BEQ", BEQ, REL, 2 },{ "SBC", SBC, IZY, 5 },{ "???", XXX, IMP, 2 },{ "???", XXX, IMP, 8 },{ "???", NOP, IMP, 4 },{ "SBC", SBC, ZPX, 4 },{ "INC", INC, ZPX, 6 },{ "???", XXX, IMP, 6 },{ "SED", SED, IMP, 2 },{ "SBC", SBC, ABY, 4 },{ "NOP", NOP, IMP, 2 },{ "???", XXX, IMP, 7 },{ "???", NOP, IMP, 4 },{ "SBC", SBC, ABX, 4 },{ "INC", INC, ABX, 7 },{ "???", XXX, IMP, 7 },
 };
 
-struct Cpu{
-  BYTE stackPtr;
-  WORD programCounter;
-  BYTE accumulator, x, y;
-
-  union {
-    struct {
-      BYTE carry: 1;
-      BYTE zero: 1;
-      BYTE interruptDisable: 1;
-      BYTE decimalMode: 1;
-      BYTE breake: 1;
-      BYTE overflow: 1;
-      BYTE negative: 1;
-      BYTE unused: 1;
-    };
-    BYTE reset;
-  };
-
-  Readfun read;
-  Writefun write;
-};
-
 Cpu* Mos6502_create(Readfun read, Writefun write) {
   Cpu* cpu = malloc(sizeof(Cpu));
   cpu->read = read;
   cpu->write = write;
   Mos6502_reset(cpu);
-
   printf("Cpu created\n\tstackPtr: %#X\n\tprogram counter: %#X\n",cpu->stackPtr ,cpu->programCounter);
-
   return cpu;
 }
 void Mos6502_reset(Cpu* cpu) {
   cpu->reset = 0;
   cpu->stackPtr = 0xFF;
   cpu->x = cpu->y = cpu->accumulator = 0;
+  cpu->cycles = 0;
 
   BYTE resetVectorLow = cpu->read(RESET_VECTOR_LOW);
   BYTE resetVectorHigh = cpu->read(RESET_VECTOR_LOW+1);
@@ -150,17 +227,38 @@ void Mos6502_reset(Cpu* cpu) {
 void Mos6502_destroy(Cpu* cpu) {
   free(cpu);
 }
-Instruction fetchInst(Cpu* cpu) {
-  BYTE instIndex = cpu->read(cpu->programCounter);
-  cpu->programCounter++;
-  return INSTRUCTIONS_LOOKUP_TABLE[instIndex];
-}
-void Mos6502_tick(Cpu* cpu, int numOfCycels) {
-  while (numOfCycels > 0) {
-    Instruction currentInst = fetchInst(cpu);
-    
-    printf("Inst name: %s\n", currentInst.name);
+void Mos6502_tick(Cpu* cpu) {
+  if (cpu->cycles == 0) {
+    BYTE instIndex = fetch(cpu);
+    Instruction currentInst = INSTRUCTIONS_LOOKUP_TABLE[instIndex];
 
-    numOfCycels -= currentInst.cycels;
-  } 
+    uint8_t cyclesAdd1 = currentInst.addrmode(cpu);
+    uint8_t cyclesAdd2 = currentInst.operate(cpu);
+
+    cpu->cycles += currentInst.cycels;
+    cpu->cycles += (cyclesAdd1 & cyclesAdd2);
+  } else {
+    cpu->cycles--;
+  }
+}
+bool Mos6502_getCarry(Cpu* cpu) {
+  return cpu->carry;
+}
+bool Mos6502_Zero(Cpu* cpu) {
+  return cpu->zero;
+}
+bool Mos6502_getInterruptDisable(Cpu* cpu) {
+  return cpu->interruptDisable;
+}
+bool Mos6502_getDecimalMode(Cpu* cpu) {
+  return cpu->decimalMode;
+}
+bool Mos6502_getBreake(Cpu* cpu) {
+  return cpu->breake;
+}
+bool Mos6502_getOverflow(Cpu* cpu) {
+  return cpu->overflow;
+}
+bool Mos6502_getNegative(Cpu* cpu) {
+  return cpu->negative;
 }

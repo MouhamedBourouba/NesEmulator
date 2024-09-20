@@ -33,7 +33,7 @@ int main(void) {
   memset(ram, 0, sizeof(ram));
 
   Cpu* cpu = Mos6502_create(read, write);
-  Mos6502_tick(cpu, 100);
+  Mos6502_tick(cpu);
 
   return EXIT_SUCCESS;
 }
