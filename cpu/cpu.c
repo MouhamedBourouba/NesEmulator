@@ -1,7 +1,5 @@
 #include "cpu.h"
-#include <math.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -56,20 +54,24 @@ Cpu* Mos6502_create(Readfun read, Writefun write) {
   printf("Cpu created\n\tprogram counter: %#X\n", cpu->programCounter);
   return cpu;
 }
+
 void Mos6502_reset(Cpu* cpu) {
   cpu->processorStatus = 0;
   cpu->stackPtr = 0xFF;
   cpu->x = cpu->y = cpu->accumulator = 0;
-  cpu->cycles = cpu->isCurrentInstImplide = cpu->instTarget = cpu->jumpOffset = 0;
-  
+  cpu->cycles = cpu->isCurrentInstImplide = cpu->instTarget = cpu->jumpOffset = 0;  
 
   BYTE resetVectorLow = cpu->read(RESET_VECTOR_LOW);
   BYTE resetVectorHigh = cpu->read(RESET_VECTOR_LOW+1);
   cpu->programCounter = (resetVectorHigh << 8) | resetVectorLow;
+
+  cpu->cycles = 8;
 }
+
 void Mos6502_destroy(Cpu* cpu) {
   free(cpu);
 }
+
 void Mos6502_tick(Cpu* cpu) {
   if (cpu->cycles == 0) {
     BYTE instIndex = fetchAndIcrementPC(cpu);
@@ -84,6 +86,7 @@ void Mos6502_tick(Cpu* cpu) {
     cpu->cycles--;
   }
 }
+
 void Mos6502_exeInstruction(Cpu* cpu) {
   cpu->cycles = 0;
   Mos6502_tick(cpu);
@@ -91,6 +94,7 @@ void Mos6502_exeInstruction(Cpu* cpu) {
     Mos6502_tick(cpu);
   }
 }
+
 void Mos6502_dump(Cpu* cpu) {
   printf("=== 6502 CPU DUMP ===\n");
   printf("Program Counter: 0x%04X\n", cpu->programCounter);
@@ -111,27 +115,33 @@ void Mos6502_dump(Cpu* cpu) {
   printf("Cycles: %u\n", cpu->cycles);
   printf("Absolute Address: 0x%04X\n", cpu->instTarget);
   printf("Relative Address: 0x%04X\n", cpu->jumpOffset);
-
   printf("====================\n");
 }
+
 bool Mos6502_getCarry(Cpu* cpu) {
   return cpu->carry;
 }
+
 bool Mos6502_Zero(Cpu* cpu) {
   return cpu->zero;
 }
+
 bool Mos6502_getInterruptDisable(Cpu* cpu) {
   return cpu->interruptDisable;
 }
+
 bool Mos6502_getDecimalMode(Cpu* cpu) {
   return cpu->decimalMode;
 }
+
 bool Mos6502_getBreake(Cpu* cpu) {
   return cpu->breake;
 }
+
 bool Mos6502_getOverflow(Cpu* cpu) {
   return cpu->overflow;
 }
+
 bool Mos6502_getNegative(Cpu* cpu) {
   return cpu->negative;
 }
@@ -226,35 +236,134 @@ BYTE IZY(Cpu* cpu) {
 }
 
 // INSTRUCTIONS
-BYTE ADC(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE AND(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE ASL(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE BCC(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE BCS(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE BEQ(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE BIT(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE BMI(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE BNE(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE BPL(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE BRK(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE BVC(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE BVS(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE CLC(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE CLD(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE CLI(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE CLV(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE CMP(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE CPX(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE CPY(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE DEC(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE DEX(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE DEY(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE EOR(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE INC(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE INX(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE INY(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE JMP(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE JSR(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE ADC(Cpu* cpu) {
+  WORD fetched = cpu->read(cpu->instTarget);
+  WORD result = (WORD)cpu->accumulator + fetched + cpu->carry;
+  if(result > 0xFF) cpu->carry = 1;
+  cpu->zero = (result & 0x00FF) == 0;
+  // most complex line of my life
+  cpu->overflow = (((cpu->accumulator ^ result) & (~(cpu->accumulator ^ fetched))) & 0x0080) > 0;
+  cpu->accumulator = result & 0x00FF;
+  return 0;
+}
+
+BYTE AND(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  cpu->accumulator &= fetched;
+  cpu->zero = cpu->accumulator == 0;
+  cpu->negative = (cpu->accumulator & 0x80) == 1;
+  return 0;
+}
+
+BYTE ASL(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+
+BYTE BCC(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE BCS(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE BEQ(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE BIT(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE BMI(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE BNE(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE BPL(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE BRK(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE BVC(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE BVS(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE CLC(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE CLD(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE CLI(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE CLV(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE CMP(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE CPX(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE CPY(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE DEC(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE DEX(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE DEY(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE EOR(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE INC(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE INX(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE INY(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE JMP(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
+BYTE JSR(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  return 0;
+}
 BYTE LDA(Cpu* cpu) { 
   cpu->accumulator = cpu->read(cpu->instTarget);
   printf("LDA\n");
@@ -292,7 +401,6 @@ BYTE LSR(Cpu* cpu) {
     cpu->write(cpu->instTarget, fetched);
   } else {
     cpu->carry = cpu->accumulator & 0x01;
-
     cpu->accumulator = cpu->accumulator >> 1;
 
     cpu->zero = cpu->accumulator == 0;
@@ -319,8 +427,8 @@ BYTE PHP(Cpu* cpu) {
   return 0;
 }
 BYTE PLA(Cpu* cpu) {
-  cpu->accumulator = cpu->read((0x0100 | cpu->stackPtr));
   cpu->stackPtr += 1;
+  cpu->accumulator = cpu->read((0x0100 | cpu->stackPtr));
   cpu->zero = cpu->accumulator == 0;
   if (cpu->accumulator & 0x80) {
     cpu->negative = 1;
@@ -336,7 +444,16 @@ BYTE ROL(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE ROR(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE RTI(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE RTS(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE SBC(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE SBC(Cpu* cpu) {
+  WORD fetched = cpu->read(cpu->instTarget) ^ 0x00FF;
+  WORD result = (WORD)cpu->accumulator + fetched + cpu->carry;
+  if(result > 0xFF) cpu->carry = 1;
+  cpu->zero = (result & 0x00FF) == 0;
+  // most complex line of my life
+  cpu->overflow = (((cpu->accumulator ^ result) & (cpu->accumulator ^ fetched)) & 0x0080) > 0;
+  cpu->accumulator = result & 0x00FF;
+  return 0;
+}
 BYTE SEC(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE SED(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE SEI(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
@@ -350,8 +467,8 @@ BYTE TXA(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE TXS(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE TYA(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE PHA(Cpu* cpu) {
-  cpu->stackPtr -= 1;
   cpu->write((0x0100 | cpu->stackPtr), cpu->accumulator);
+  cpu->stackPtr -= 1;
   return 0;
 }
 
