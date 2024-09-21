@@ -1,5 +1,6 @@
 .cache/
 nes
+Session.vim
 
 # Prerequisites
 *.d

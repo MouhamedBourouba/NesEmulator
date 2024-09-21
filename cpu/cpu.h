@@ -15,6 +15,8 @@ Cpu* Mos6502_create(Readfun read, Writefun write);
 void Mos6502_destroy(Cpu* cpu);
 void Mos6502_reset(Cpu* cpu);
 void Mos6502_tick(Cpu* cpu);
+void Mos6502_exeInstruction(Cpu* cpu);
+void Mos6502_dump(Cpu* cpu);
 
 // flags
 bool Mos6502_getCarry(Cpu* cpu);
