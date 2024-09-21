@@ -33,6 +33,7 @@ struct Cpu {
   Readfun read;
   Writefun write;
 };
+
 typedef struct {
   const char* name;
   BYTE (*operate)(Cpu*);
@@ -256,7 +257,19 @@ BYTE AND(Cpu* cpu) {
 }
 
 BYTE ASL(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  if(!cpu->isCurrentInstImplide) {
+    BYTE fetched = cpu->read(cpu->instTarget);
+    cpu->carry = fetched & 0x80;
+    fetched = fetched << 1;
+    cpu->zero = fetched == 0;
+    cpu->negative = (fetched & 0x80) == 1;
+    cpu->write(cpu->instTarget, fetched);
+  } else {
+    cpu->carry = cpu->accumulator & 0x80;
+    cpu->accumulator = cpu->accumulator << 1;
+    cpu->negative = (cpu->accumulator & 0x80) == 1;
+    cpu->zero = cpu->accumulator == 0;
+  }
   return 0;
 }
 
