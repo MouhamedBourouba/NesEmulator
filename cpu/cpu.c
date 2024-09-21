@@ -1,4 +1,6 @@
 #include "cpu.h"
+#include <math.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,13 +23,14 @@ struct Cpu {
       BYTE negative: 1;
       BYTE unused: 1;
     };
-    BYTE reset;
+    BYTE processorStatus;
   };
     
   uint8_t cycles;
-  WORD addressAbsolute;
-  WORD addressReletive;
-  BYTE fetched;
+  WORD instTarget;
+  WORD jumpOffset;
+  
+  bool isCurrentInstImplide;
 
   Readfun read;
   Writefun write;
@@ -39,9 +42,8 @@ typedef struct {
   BYTE cycels;
 } Instruction;
 
-static BYTE fetch(Cpu* cpu) {
-  cpu->fetched = cpu->read(cpu->programCounter++);
-  return cpu->fetched;
+static BYTE fetchAndIcrementPC(Cpu* cpu) {
+  return cpu->read(cpu->programCounter++);
 }
 
 static const Instruction INSTRUCTIONS_LOOKUP_TABLE[] ;
@@ -55,10 +57,11 @@ Cpu* Mos6502_create(Readfun read, Writefun write) {
   return cpu;
 }
 void Mos6502_reset(Cpu* cpu) {
-  cpu->reset = 0;
+  cpu->processorStatus = 0;
   cpu->stackPtr = 0xFF;
   cpu->x = cpu->y = cpu->accumulator = 0;
-  cpu->cycles = 0;
+  cpu->cycles = cpu->isCurrentInstImplide = cpu->instTarget = cpu->jumpOffset = 0;
+  
 
   BYTE resetVectorLow = cpu->read(RESET_VECTOR_LOW);
   BYTE resetVectorHigh = cpu->read(RESET_VECTOR_LOW+1);
@@ -69,7 +72,7 @@ void Mos6502_destroy(Cpu* cpu) {
 }
 void Mos6502_tick(Cpu* cpu) {
   if (cpu->cycles == 0) {
-    BYTE instIndex = fetch(cpu);
+    BYTE instIndex = fetchAndIcrementPC(cpu);
     Instruction currentInst = INSTRUCTIONS_LOOKUP_TABLE[instIndex];
 
     uint8_t cyclesAdd1 = currentInst.addrmode(cpu);
@@ -106,9 +109,8 @@ void Mos6502_dump(Cpu* cpu) {
          cpu->negative);
 
   printf("Cycles: %u\n", cpu->cycles);
-  printf("Absolute Address: 0x%04X\n", cpu->addressAbsolute);
-  printf("Relative Address: 0x%04X\n", cpu->addressReletive);
-  printf("Fetched Value: 0x%02X\n", cpu->fetched);
+  printf("Absolute Address: 0x%04X\n", cpu->instTarget);
+  printf("Relative Address: 0x%04X\n", cpu->jumpOffset);
 
   printf("====================\n");
 }
@@ -136,87 +138,88 @@ bool Mos6502_getNegative(Cpu* cpu) {
 
 // ADDR modes
 BYTE IMP(Cpu* cpu) { 
-  cpu->fetched = cpu->accumulator;
+  cpu->isCurrentInstImplide = true;
   return 0;
 }
 BYTE IMM(Cpu* cpu) {
-  cpu->addressAbsolute = cpu->programCounter++; 
+  cpu->instTarget = cpu->programCounter++; 
   return 0;
 }
 BYTE ZP0(Cpu* cpu) { 
-  BYTE lsb = fetch(cpu);
-  cpu->addressAbsolute = (lsb & 0x00FF);
+  BYTE lsb = fetchAndIcrementPC(cpu);
+  cpu->instTarget = (lsb & 0x00FF);
   return 0;
 }
 BYTE ZPX(Cpu* cpu) {
-  cpu->addressAbsolute = ((fetch(cpu) + cpu->x) & 0x00FF);
+  cpu->instTarget = ((fetchAndIcrementPC(cpu) + cpu->x) & 0x00FF);
   return 0;
 }
 BYTE ZPY(Cpu* cpu) {
-  cpu->addressAbsolute = ((fetch(cpu) + cpu->y) & 0x00FF);
+  cpu->instTarget = ((fetchAndIcrementPC(cpu) + cpu->y) & 0x00FF);
   return 0;
 }
 BYTE REL(Cpu* cpu) {
-  cpu->addressReletive = fetch(cpu);
-  if(cpu->addressReletive & 0x80) {
-    cpu->addressReletive |= 0xFF00;
+  cpu->jumpOffset = fetchAndIcrementPC(cpu);
+  if(cpu->jumpOffset & 0x80) {
+    cpu->jumpOffset |= 0xFF00;
   }
   return 0;
 }
 BYTE ABS(Cpu* cpu) {
-  BYTE addressLow = fetch(cpu);
-  BYTE addressHigh = fetch(cpu);
-  cpu->addressAbsolute = (addressHigh << 8) | addressLow;
+  BYTE addressLow = fetchAndIcrementPC(cpu);
+  BYTE addressHigh = fetchAndIcrementPC(cpu);
+  cpu->instTarget = (addressHigh << 8) | addressLow;
   return 0;
 }
 BYTE ABX(Cpu* cpu) {
-  BYTE addressLow = fetch(cpu);
-  BYTE addressHigh = fetch(cpu);
-  cpu->addressAbsolute = (addressHigh << 8) | addressLow;
-  cpu->addressAbsolute += cpu->x;
+  BYTE addressLow = fetchAndIcrementPC(cpu);
+  BYTE addressHigh = fetchAndIcrementPC(cpu);
+  cpu->instTarget = (addressHigh << 8) | addressLow;
+  cpu->instTarget += cpu->x;
   
-  if (cpu->addressAbsolute >> 8 != addressHigh) {
+  if (cpu->instTarget >> 8 != addressHigh) {
     return 1;
   }
   return 0;
 }
 BYTE ABY(Cpu* cpu) {
-  BYTE addressLow = fetch(cpu);
-  BYTE addressHigh = fetch(cpu);
-  cpu->addressAbsolute = (addressHigh << 8) | addressLow;
-  cpu->addressAbsolute += cpu->y;
+  BYTE addressLow = fetchAndIcrementPC(cpu);
+  BYTE addressHigh = fetchAndIcrementPC(cpu);
+
+  cpu->instTarget = (addressHigh << 8) | addressLow;
+  cpu->instTarget += cpu->y;
   
-  if (cpu->addressAbsolute >> 8 != addressHigh) {
+  if (cpu->instTarget >> 8 != addressHigh) {
     return 1;
   }
   return 0;
 }
 BYTE IND(Cpu* cpu) {
-  BYTE ptrLow = fetch(cpu);
-  BYTE ptrHigh = fetch(cpu);
+  BYTE ptrLow = fetchAndIcrementPC(cpu);
+  BYTE ptrHigh = fetchAndIcrementPC(cpu);
   WORD ptr = (ptrHigh << 8) | ptrLow;
   
-  cpu->addressAbsolute = (cpu->read(ptr + 1) << 8) | cpu->read(ptr);
+  cpu->instTarget = (cpu->read(ptr + 1) << 8) | cpu->read(ptr);
   return 0;
 }
 BYTE IZX(Cpu* cpu) {
-  BYTE table = fetch(cpu);
+  BYTE table = fetchAndIcrementPC(cpu);
   
   BYTE addrLow = cpu->read((WORD)(table + cpu->x) & 0x00FF);
   BYTE addrHigh = cpu->read((WORD)(table + cpu->x + 1) & 0x00FF);
   
-  cpu->addressAbsolute = (addrHigh << 8) | addrLow;
+  cpu->instTarget = (addrHigh << 8) | addrLow;
   return 0;
 }
 BYTE IZY(Cpu* cpu) {
-  BYTE table = fetch(cpu);
+  BYTE table = fetchAndIcrementPC(cpu);
   
   BYTE addrLow = cpu->read((WORD)(table) & 0x00FF);
   BYTE addrHigh = cpu->read((WORD)(table + 1) & 0x00FF);
   
-  cpu->addressAbsolute = ((addrHigh << 8) | addrLow) + cpu->y;
+  cpu->instTarget = ((addrHigh << 8) | addrLow) + cpu->y;
 
-  if(cpu->addressAbsolute >> 8 != addrHigh) {
+  if(cpu->instTarget >> 8 != addrHigh) {
     return 1;
   }
   return 0;
@@ -253,7 +256,7 @@ BYTE INY(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE JMP(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE JSR(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE LDA(Cpu* cpu) { 
-  cpu->accumulator = cpu->read(cpu->addressAbsolute);
+  cpu->accumulator = cpu->read(cpu->instTarget);
   printf("LDA\n");
   cpu->zero = cpu->accumulator == 0;
   if (cpu->accumulator & 0x80) {
@@ -262,7 +265,7 @@ BYTE LDA(Cpu* cpu) {
   return 0; 
 }
 BYTE LDX(Cpu* cpu) {
-  cpu->x = cpu->read(cpu->addressAbsolute);
+  cpu->x = cpu->read(cpu->instTarget);
   cpu->zero = cpu->x == 0;
   if (cpu->x & 0x80) {
     cpu->negative = 1;
@@ -270,19 +273,65 @@ BYTE LDX(Cpu* cpu) {
   return 0;
 }
 BYTE LDY(Cpu* cpu) {
-  cpu->y = cpu->read(cpu->addressAbsolute);
+  cpu->y = cpu->read(cpu->instTarget);
   cpu->zero = cpu->y == 0;
   if (cpu->y & 0x80) {
     cpu->negative = 1;
   }
   return 0;
 }
-BYTE LSR(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE NOP(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE ORA(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE PHP(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE PLA(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE PLP(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE LSR(Cpu* cpu) {
+  if(!cpu->isCurrentInstImplide) {
+    BYTE fetched = cpu->read(cpu->instTarget);
+    cpu->carry = fetched & 0x01;
+    fetched = fetched >> 1;
+    cpu->zero = fetched == 0;
+    if(fetched & 0x80) {
+      cpu->negative = 1;
+    }
+    cpu->write(cpu->instTarget, fetched);
+  } else {
+    cpu->carry = cpu->accumulator & 0x01;
+
+    cpu->accumulator = cpu->accumulator >> 1;
+
+    cpu->zero = cpu->accumulator == 0;
+    cpu->negative = 0;
+  }
+
+  return 0;
+}
+BYTE NOP(Cpu* cpu) {
+  return 0;
+}
+BYTE ORA(Cpu* cpu) {
+  BYTE fetched = cpu->read(cpu->instTarget);
+  cpu->accumulator |= fetched;
+  cpu->zero = cpu->accumulator == 0;
+  if (cpu->accumulator & 0x80) {
+    cpu->negative = 1;
+  }
+  return 0;
+}
+BYTE PHP(Cpu* cpu) {
+  cpu->stackPtr -= 1;
+  cpu->write((0x0100 | cpu->stackPtr), cpu->processorStatus);
+  return 0;
+}
+BYTE PLA(Cpu* cpu) {
+  cpu->accumulator = cpu->read((0x0100 | cpu->stackPtr));
+  cpu->stackPtr += 1;
+  cpu->zero = cpu->accumulator == 0;
+  if (cpu->accumulator & 0x80) {
+    cpu->negative = 1;
+  }
+  return 0;
+}
+BYTE PLP(Cpu* cpu) {
+  cpu->processorStatus = cpu->read((0x0100 | cpu->stackPtr));
+  cpu->stackPtr += 1;
+  return 0;
+}
 BYTE ROL(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE ROR(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE RTI(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
@@ -300,7 +349,11 @@ BYTE TSX(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE TXA(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE TXS(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE TYA(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
-BYTE PHA(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
+BYTE PHA(Cpu* cpu) {
+  cpu->stackPtr -= 1;
+  cpu->write((0x0100 | cpu->stackPtr), cpu->accumulator);
+  return 0;
+}
 
 BYTE XXX(Cpu* cpu) {
   printf("Illegal Oppcode\n");
