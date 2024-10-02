@@ -25,9 +25,7 @@ struct Cpu {
   };
     
   uint8_t cycles;
-  WORD instTarget;
-  WORD jumpOffset;
-  
+  WORD oprandAdrress;
   bool isCurrentInstImplide;
 
   Readfun read;
@@ -45,7 +43,7 @@ static BYTE fetchAndIcrementPC(Cpu* cpu) {
   return cpu->read(cpu->programCounter++);
 }
 
-static const Instruction INSTRUCTIONS_LOOKUP_TABLE[] ;
+static const Instruction INSTRUCTIONS_LOOKUP_TABLE[];
 
 Cpu* Mos6502_create(Readfun read, Writefun write) {
   Cpu* cpu = malloc(sizeof(Cpu));
@@ -58,9 +56,9 @@ Cpu* Mos6502_create(Readfun read, Writefun write) {
 
 void Mos6502_reset(Cpu* cpu) {
   cpu->processorStatus = 0;
-  cpu->stackPtr = 0xFF;
+  cpu->stackPtr = 0xFD;
   cpu->x = cpu->y = cpu->accumulator = 0;
-  cpu->cycles = cpu->isCurrentInstImplide = cpu->instTarget = cpu->jumpOffset = 0;  
+  cpu->cycles = cpu->isCurrentInstImplide = cpu->oprandAdrress = 0;  
 
   BYTE resetVectorLow = cpu->read(RESET_VECTOR_LOW);
   BYTE resetVectorHigh = cpu->read(RESET_VECTOR_LOW+1);
@@ -81,7 +79,7 @@ void Mos6502_tick(Cpu* cpu) {
     uint8_t cyclesAdd1 = currentInst.addrmode(cpu);
     uint8_t cyclesAdd2 = currentInst.operate(cpu);
 
-    cpu->cycles += currentInst.cycels;
+    cpu->cycles = currentInst.cycels;
     cpu->cycles += (cyclesAdd1 & cyclesAdd2);
   } else {
     cpu->cycles--;
@@ -89,11 +87,9 @@ void Mos6502_tick(Cpu* cpu) {
 }
 
 void Mos6502_exeInstruction(Cpu* cpu) {
-  cpu->cycles = 0;
+  while (cpu->cycles > 0) Mos6502_tick(cpu);
   Mos6502_tick(cpu);
-  while (cpu->cycles > 0) {
-    Mos6502_tick(cpu);
-  }
+  while (cpu->cycles > 0) Mos6502_tick(cpu);
 }
 
 void Mos6502_dump(Cpu* cpu) {
@@ -112,10 +108,6 @@ void Mos6502_dump(Cpu* cpu) {
          cpu->breake, 
          cpu->overflow, 
          cpu->negative);
-
-  printf("Cycles: %u\n", cpu->cycles);
-  printf("Absolute Address: 0x%04X\n", cpu->instTarget);
-  printf("Relative Address: 0x%04X\n", cpu->jumpOffset);
   printf("====================\n");
 }
 
@@ -123,7 +115,7 @@ bool Mos6502_getCarry(Cpu* cpu) {
   return cpu->carry;
 }
 
-bool Mos6502_Zero(Cpu* cpu) {
+bool Mos6502_getZero(Cpu* cpu) {
   return cpu->zero;
 }
 
@@ -153,42 +145,42 @@ BYTE IMP(Cpu* cpu) {
   return 0;
 }
 BYTE IMM(Cpu* cpu) {
-  cpu->instTarget = cpu->programCounter++; 
+  cpu->oprandAdrress = cpu->programCounter++; 
   return 0;
 }
 BYTE ZP0(Cpu* cpu) { 
   BYTE lsb = fetchAndIcrementPC(cpu);
-  cpu->instTarget = (lsb & 0x00FF);
+  cpu->oprandAdrress = (lsb & 0x00FF);
   return 0;
 }
 BYTE ZPX(Cpu* cpu) {
-  cpu->instTarget = ((fetchAndIcrementPC(cpu) + cpu->x) & 0x00FF);
+  cpu->oprandAdrress = ((fetchAndIcrementPC(cpu) + cpu->x) & 0x00FF);
   return 0;
 }
 BYTE ZPY(Cpu* cpu) {
-  cpu->instTarget = ((fetchAndIcrementPC(cpu) + cpu->y) & 0x00FF);
+  cpu->oprandAdrress = ((fetchAndIcrementPC(cpu) + cpu->y) & 0x00FF);
   return 0;
 }
 BYTE REL(Cpu* cpu) {
-  cpu->jumpOffset = fetchAndIcrementPC(cpu);
-  if(cpu->jumpOffset & 0x80) {
-    cpu->jumpOffset |= 0xFF00;
+  cpu->oprandAdrress = fetchAndIcrementPC(cpu);
+  if(cpu->oprandAdrress & 0x80) {
+    cpu->oprandAdrress |= 0xFF00;
   }
   return 0;
 }
 BYTE ABS(Cpu* cpu) {
   BYTE addressLow = fetchAndIcrementPC(cpu);
   BYTE addressHigh = fetchAndIcrementPC(cpu);
-  cpu->instTarget = (addressHigh << 8) | addressLow;
+  cpu->oprandAdrress = (addressHigh << 8) | addressLow;
   return 0;
 }
 BYTE ABX(Cpu* cpu) {
   BYTE addressLow = fetchAndIcrementPC(cpu);
   BYTE addressHigh = fetchAndIcrementPC(cpu);
-  cpu->instTarget = (addressHigh << 8) | addressLow;
-  cpu->instTarget += cpu->x;
+  cpu->oprandAdrress = (addressHigh << 8) | addressLow;
+  cpu->oprandAdrress += cpu->x;
   
-  if (cpu->instTarget >> 8 != addressHigh) {
+  if (cpu->oprandAdrress >> 8 != addressHigh) {
     return 1;
   }
   return 0;
@@ -197,10 +189,10 @@ BYTE ABY(Cpu* cpu) {
   BYTE addressLow = fetchAndIcrementPC(cpu);
   BYTE addressHigh = fetchAndIcrementPC(cpu);
 
-  cpu->instTarget = (addressHigh << 8) | addressLow;
-  cpu->instTarget += cpu->y;
+  cpu->oprandAdrress = (addressHigh << 8) | addressLow;
+  cpu->oprandAdrress += cpu->y;
   
-  if (cpu->instTarget >> 8 != addressHigh) {
+  if (cpu->oprandAdrress >> 8 != addressHigh) {
     return 1;
   }
   return 0;
@@ -210,7 +202,7 @@ BYTE IND(Cpu* cpu) {
   BYTE ptrHigh = fetchAndIcrementPC(cpu);
   WORD ptr = (ptrHigh << 8) | ptrLow;
   
-  cpu->instTarget = (cpu->read(ptr + 1) << 8) | cpu->read(ptr);
+  cpu->oprandAdrress = (cpu->read(ptr + 1) << 8) | cpu->read(ptr);
   return 0;
 }
 BYTE IZX(Cpu* cpu) {
@@ -219,7 +211,7 @@ BYTE IZX(Cpu* cpu) {
   BYTE addrLow = cpu->read((WORD)(table + cpu->x) & 0x00FF);
   BYTE addrHigh = cpu->read((WORD)(table + cpu->x + 1) & 0x00FF);
   
-  cpu->instTarget = (addrHigh << 8) | addrLow;
+  cpu->oprandAdrress = (addrHigh << 8) | addrLow;
   return 0;
 }
 BYTE IZY(Cpu* cpu) {
@@ -228,17 +220,23 @@ BYTE IZY(Cpu* cpu) {
   BYTE addrLow = cpu->read((WORD)(table) & 0x00FF);
   BYTE addrHigh = cpu->read((WORD)(table + 1) & 0x00FF);
   
-  cpu->instTarget = ((addrHigh << 8) | addrLow) + cpu->y;
+  cpu->oprandAdrress = ((addrHigh << 8) | addrLow) + cpu->y;
 
-  if(cpu->instTarget >> 8 != addrHigh) {
+  if(cpu->oprandAdrress >> 8 != addrHigh) {
     return 1;
   }
   return 0;
 }
 
+static void setZeroFlag(Cpu* cpu, BYTE m) {
+  if(m & 0x80) {
+    cpu->zero = 1;
+  }
+}
+
 // INSTRUCTIONS
 BYTE ADC(Cpu* cpu) {
-  WORD fetched = cpu->read(cpu->instTarget);
+  WORD fetched = cpu->read(cpu->oprandAdrress);
   WORD result = (WORD)cpu->accumulator + fetched + cpu->carry;
   if(result > 0xFF) cpu->carry = 1;
   cpu->zero = (result & 0x00FF) == 0;
@@ -249,136 +247,135 @@ BYTE ADC(Cpu* cpu) {
 }
 
 BYTE AND(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   cpu->accumulator &= fetched;
   cpu->zero = cpu->accumulator == 0;
-  cpu->negative = (cpu->accumulator & 0x80) == 1;
+  setZeroFlag(cpu, cpu->accumulator);
   return 0;
 }
 
 BYTE ASL(Cpu* cpu) {
   if(!cpu->isCurrentInstImplide) {
-    BYTE fetched = cpu->read(cpu->instTarget);
+    BYTE fetched = cpu->read(cpu->oprandAdrress);
     cpu->carry = fetched & 0x80;
     fetched = fetched << 1;
-    cpu->zero = fetched == 0;
-    cpu->negative = (fetched & 0x80) == 1;
-    cpu->write(cpu->instTarget, fetched);
+    setZeroFlag(cpu, (fetched & 0x80));
+    cpu->write(cpu->oprandAdrress, fetched);
   } else {
     cpu->carry = cpu->accumulator & 0x80;
     cpu->accumulator = cpu->accumulator << 1;
-    cpu->negative = (cpu->accumulator & 0x80) == 1;
+    setZeroFlag(cpu, cpu->accumulator);
     cpu->zero = cpu->accumulator == 0;
   }
   return 0;
 }
 
 BYTE BCC(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE BCS(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE BEQ(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE BIT(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE BMI(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE BNE(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE BPL(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE BRK(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE BVC(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE BVS(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE CLC(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE CLD(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE CLI(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE CLV(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE CMP(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE CPX(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE CPY(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE DEC(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE DEX(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE DEY(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE EOR(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE INC(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE INX(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE INY(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE JMP(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE JSR(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 BYTE LDA(Cpu* cpu) { 
-  cpu->accumulator = cpu->read(cpu->instTarget);
+  cpu->accumulator = cpu->read(cpu->oprandAdrress);
   printf("LDA\n");
   cpu->zero = cpu->accumulator == 0;
   if (cpu->accumulator & 0x80) {
@@ -387,7 +384,7 @@ BYTE LDA(Cpu* cpu) {
   return 0; 
 }
 BYTE LDX(Cpu* cpu) {
-  cpu->x = cpu->read(cpu->instTarget);
+  cpu->x = cpu->read(cpu->oprandAdrress);
   cpu->zero = cpu->x == 0;
   if (cpu->x & 0x80) {
     cpu->negative = 1;
@@ -395,7 +392,7 @@ BYTE LDX(Cpu* cpu) {
   return 0;
 }
 BYTE LDY(Cpu* cpu) {
-  cpu->y = cpu->read(cpu->instTarget);
+  cpu->y = cpu->read(cpu->oprandAdrress);
   cpu->zero = cpu->y == 0;
   if (cpu->y & 0x80) {
     cpu->negative = 1;
@@ -404,18 +401,15 @@ BYTE LDY(Cpu* cpu) {
 }
 BYTE LSR(Cpu* cpu) {
   if(!cpu->isCurrentInstImplide) {
-    BYTE fetched = cpu->read(cpu->instTarget);
+    BYTE fetched = cpu->read(cpu->oprandAdrress);
     cpu->carry = fetched & 0x01;
     fetched = fetched >> 1;
     cpu->zero = fetched == 0;
-    if(fetched & 0x80) {
-      cpu->negative = 1;
-    }
-    cpu->write(cpu->instTarget, fetched);
+    cpu->negative = 0;
+    cpu->write(cpu->oprandAdrress, fetched);
   } else {
     cpu->carry = cpu->accumulator & 0x01;
     cpu->accumulator = cpu->accumulator >> 1;
-
     cpu->zero = cpu->accumulator == 0;
     cpu->negative = 0;
   }
@@ -426,7 +420,7 @@ BYTE NOP(Cpu* cpu) {
   return 0;
 }
 BYTE ORA(Cpu* cpu) {
-  BYTE fetched = cpu->read(cpu->instTarget);
+  BYTE fetched = cpu->read(cpu->oprandAdrress);
   cpu->accumulator |= fetched;
   cpu->zero = cpu->accumulator == 0;
   if (cpu->accumulator & 0x80) {
@@ -458,7 +452,7 @@ BYTE ROR(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE RTI(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE RTS(Cpu* cpu) { printf("Unimplemented\n"); return 0; }
 BYTE SBC(Cpu* cpu) {
-  WORD fetched = cpu->read(cpu->instTarget) ^ 0x00FF;
+  WORD fetched = cpu->read(cpu->oprandAdrress) ^ 0x00FF;
   WORD result = (WORD)cpu->accumulator + fetched + cpu->carry;
   if(result > 0xFF) cpu->carry = 1;
   cpu->zero = (result & 0x00FF) == 0;
