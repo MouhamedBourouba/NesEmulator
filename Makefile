@@ -1,4 +1,4 @@
-all: build
+all: run
 
 cpu:
 	$(MAKE) -C cpu/
