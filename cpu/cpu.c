@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #define RESET_VECTOR_LOW 0xFFFA
+#define STACK_PAGE 0x0100
 
 struct Cpu {
   BYTE stackPtr;
@@ -94,9 +95,9 @@ void Mos6502_exeInstruction(Cpu *cpu) {
 }
 
 void Mos6502_printPage(Cpu *cpu, unsigned page) {
-  assert(page >= 1 && page <= 255);
+  printf("====== PageNumber %d ======\n", page);
   for (int i = 0; i < 256; i++) {
-    printf("%02X ", cpu->read((page - 1) | i));
+    printf("%02X ", cpu->read((page) + i));
     if (!((i + 1) % 16)) {
       printf("\n");
     }
@@ -105,12 +106,12 @@ void Mos6502_printPage(Cpu *cpu, unsigned page) {
 
 void Mos6502_printZeroPage(Cpu *cpu) {
   printf("====== ZeroPage ======\n");
-  Mos6502_printPage(cpu, 1);
+  Mos6502_printPage(cpu, 0);
 }
 
 void Mos6502_printStack(Cpu *cpu) {
   printf("====== Stack ======\n");
-  Mos6502_printPage(cpu, 2);
+  Mos6502_printPage(cpu, 1);
 }
 
 void Mos6502_dump(Cpu *cpu) {
@@ -146,23 +147,28 @@ BYTE IMP(Cpu *cpu) {
   cpu->isCurrentInstImplide = true;
   return 0;
 }
+
 BYTE IMM(Cpu *cpu) {
   cpu->oprandAdrress = cpu->programCounter++;
   return 0;
 }
+
 BYTE ZP0(Cpu *cpu) {
   BYTE lsb = fetchAndIcrementPC(cpu);
   cpu->oprandAdrress = (lsb & 0x00FF);
   return 0;
 }
+
 BYTE ZPX(Cpu *cpu) {
   cpu->oprandAdrress = ((fetchAndIcrementPC(cpu) + cpu->x) & 0x00FF);
   return 0;
 }
+
 BYTE ZPY(Cpu *cpu) {
   cpu->oprandAdrress = ((fetchAndIcrementPC(cpu) + cpu->y) & 0x00FF);
   return 0;
 }
+
 BYTE REL(Cpu *cpu) {
   cpu->oprandAdrress = fetchAndIcrementPC(cpu);
   if (cpu->oprandAdrress & 0x80) {
@@ -170,12 +176,14 @@ BYTE REL(Cpu *cpu) {
   }
   return 0;
 }
+
 BYTE ABS(Cpu *cpu) {
   BYTE addressLow = fetchAndIcrementPC(cpu);
   BYTE addressHigh = fetchAndIcrementPC(cpu);
   cpu->oprandAdrress = (addressHigh << 8) | addressLow;
   return 0;
 }
+
 BYTE ABX(Cpu *cpu) {
   BYTE addressLow = fetchAndIcrementPC(cpu);
   BYTE addressHigh = fetchAndIcrementPC(cpu);
@@ -187,6 +195,7 @@ BYTE ABX(Cpu *cpu) {
   }
   return 0;
 }
+
 BYTE ABY(Cpu *cpu) {
   BYTE addressLow = fetchAndIcrementPC(cpu);
   BYTE addressHigh = fetchAndIcrementPC(cpu);
@@ -199,6 +208,7 @@ BYTE ABY(Cpu *cpu) {
   }
   return 0;
 }
+
 BYTE IND(Cpu *cpu) {
   BYTE ptrLow = fetchAndIcrementPC(cpu);
   BYTE ptrHigh = fetchAndIcrementPC(cpu);
@@ -207,6 +217,7 @@ BYTE IND(Cpu *cpu) {
   cpu->oprandAdrress = (cpu->read(ptr + 1) << 8) | cpu->read(ptr);
   return 0;
 }
+
 BYTE IZX(Cpu *cpu) {
   BYTE table = fetchAndIcrementPC(cpu);
 
@@ -216,6 +227,7 @@ BYTE IZX(Cpu *cpu) {
   cpu->oprandAdrress = (addrHigh << 8) | addrLow;
   return 0;
 }
+
 BYTE IZY(Cpu *cpu) {
   BYTE table = fetchAndIcrementPC(cpu);
 
@@ -279,22 +291,27 @@ BYTE BCC(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
+
 BYTE BCS(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
+
 BYTE BEQ(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
+
 BYTE BIT(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
+
 BYTE BMI(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
+
 BYTE BNE(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
@@ -304,14 +321,17 @@ BYTE BPL(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
+
 BYTE BRK(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
+
 BYTE BVC(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
+
 BYTE BVS(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
@@ -327,14 +347,17 @@ BYTE CLD(Cpu *cpu) {
   cpu->decimalMode = 0;
   return 0;
 }
+
 BYTE CLI(Cpu *cpu) {
   cpu->interruptDisable = 0;
   return 0;
 }
+
 BYTE CLV(Cpu *cpu) {
   cpu->overflow = 0;
   return 0;
 }
+
 BYTE CMP(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   if (fetched == cpu->accumulator) {
@@ -344,46 +367,71 @@ BYTE CMP(Cpu *cpu) {
   }
   return 0;
 }
+
 BYTE CPX(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
+  if (fetched == cpu->x) {
+    cpu->zero = 1;
+  } else {
+    cpu->carry = cpu->x >= fetched;
+  }
   return 0;
 }
+
 BYTE CPY(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
+  if (fetched == cpu->y) {
+    cpu->zero = 1;
+  } else {
+    cpu->carry = cpu->y >= fetched;
+  }
   return 0;
 }
+
 BYTE DEC(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
+  BYTE result = fetched - 1;
+  cpu->zero = (result == 0);
+  setNegativeFlag(cpu, result);
+  cpu->write(cpu->oprandAdrress, result);
   return 0;
 }
+
 BYTE DEX(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
+
 BYTE DEY(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
+
 BYTE EOR(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
+
 BYTE INC(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
+
 BYTE INX(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
+
 BYTE INY(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
+
 BYTE JMP(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
+
 BYTE JSR(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
@@ -393,28 +441,24 @@ BYTE LDA(Cpu *cpu) {
   cpu->accumulator = cpu->read(cpu->oprandAdrress);
   printf("LDA\n");
   cpu->zero = cpu->accumulator == 0;
-  if (cpu->accumulator & 0x80) {
-    cpu->negative = 1;
-  }
+  setNegativeFlag(cpu, cpu->accumulator);
   return 0;
 }
 
 BYTE LDX(Cpu *cpu) {
   cpu->x = cpu->read(cpu->oprandAdrress);
   cpu->zero = cpu->x == 0;
-  if (cpu->x & 0x80) {
-    cpu->negative = 1;
-  }
+  setNegativeFlag(cpu, cpu->x);
   return 0;
 }
+
 BYTE LDY(Cpu *cpu) {
   cpu->y = cpu->read(cpu->oprandAdrress);
   cpu->zero = cpu->y == 0;
-  if (cpu->y & 0x80) {
-    cpu->negative = 1;
-  }
+  setNegativeFlag(cpu, cpu->y);
   return 0;
 }
+
 BYTE LSR(Cpu *cpu) {
   if (!cpu->isCurrentInstImplide) {
     BYTE fetched = cpu->read(cpu->oprandAdrress);
@@ -432,51 +476,57 @@ BYTE LSR(Cpu *cpu) {
 
   return 0;
 }
+
 BYTE NOP(Cpu *cpu) { return 0; }
+
 BYTE ORA(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   cpu->accumulator |= fetched;
   cpu->zero = cpu->accumulator == 0;
-  if (cpu->accumulator & 0x80) {
-    cpu->negative = 1;
-  }
+  setNegativeFlag(cpu, cpu->accumulator);
   return 0;
 }
+
 BYTE PHP(Cpu *cpu) {
   cpu->stackPtr -= 1;
-  cpu->write((0x0100 | cpu->stackPtr), cpu->processorStatus);
+  cpu->write((STACK_PAGE | cpu->stackPtr), cpu->processorStatus);
   return 0;
 }
+
 BYTE PLA(Cpu *cpu) {
   cpu->stackPtr += 1;
-  cpu->accumulator = cpu->read((0x0100 | cpu->stackPtr));
+  cpu->accumulator = cpu->read((STACK_PAGE | cpu->stackPtr));
   cpu->zero = cpu->accumulator == 0;
-  if (cpu->accumulator & 0x80) {
-    cpu->negative = 1;
-  }
+  setNegativeFlag(cpu, cpu->accumulator);
   return 0;
 }
+
 BYTE PLP(Cpu *cpu) {
-  cpu->processorStatus = cpu->read((0x0100 | cpu->stackPtr));
+  cpu->processorStatus = cpu->read((STACK_PAGE | cpu->stackPtr));
   cpu->stackPtr += 1;
   return 0;
 }
+
 BYTE ROL(Cpu *cpu) {
   printf("Unimplemented\n");
   return 0;
 }
+
 BYTE ROR(Cpu *cpu) {
   printf("Unimplemented\n");
   return 0;
 }
+
 BYTE RTI(Cpu *cpu) {
   printf("Unimplemented\n");
   return 0;
 }
+
 BYTE RTS(Cpu *cpu) {
   printf("Unimplemented\n");
   return 0;
 }
+
 BYTE SBC(Cpu *cpu) {
   WORD fetched = cpu->read(cpu->oprandAdrress) ^ 0x00FF;
   WORD result = (WORD)cpu->accumulator + fetched + cpu->carry;
@@ -490,64 +540,77 @@ BYTE SBC(Cpu *cpu) {
   cpu->accumulator = result & 0x00FF;
   return 0;
 }
+
 BYTE SEC(Cpu *cpu) {
   printf("Unimplemented\n");
   return 0;
 }
+
 BYTE SED(Cpu *cpu) {
   printf("Unimplemented\n");
   return 0;
 }
+
 BYTE SEI(Cpu *cpu) {
   printf("Unimplemented\n");
   return 0;
 }
+
 BYTE STA(Cpu *cpu) {
-  printf("Unimplemented\n");
+  cpu->write(cpu->oprandAdrress, cpu->accumulator);
   return 0;
 }
+
 BYTE STX(Cpu *cpu) {
-  printf("Unimplemented\n");
+  cpu->write(cpu->oprandAdrress, cpu->x);
   return 0;
 }
+
 BYTE STY(Cpu *cpu) {
-  printf("Unimplemented\n");
+  cpu->write(cpu->oprandAdrress, cpu->y);
   return 0;
 }
+
 BYTE TAX(Cpu *cpu) {
   cpu->x = cpu->accumulator;
   setNegativeFlag(cpu, cpu->x);
   cpu->zero = cpu->x == 0;
   return 0;
 }
+
 BYTE TAY(Cpu *cpu) {
   cpu->y = cpu->accumulator;
   setNegativeFlag(cpu, cpu->y);
   cpu->zero = cpu->y == 0;
   return 0;
 }
+
 BYTE TSX(Cpu *cpu) {
   cpu->x = cpu->stackPtr;
   setNegativeFlag(cpu, cpu->x);
   cpu->zero = cpu->x == 0;
   return 0;
 }
+
 BYTE TXA(Cpu *cpu) {
   cpu->x = cpu->accumulator;
   setNegativeFlag(cpu, cpu->x);
   cpu->zero = cpu->x == 0;
   return 0;
 }
+
 BYTE TXS(Cpu *cpu) {
   printf("Unimplemented\n");
   return 0;
 }
+
 BYTE TYA(Cpu *cpu) {
   printf("Unimplemented\n");
   return 0;
 }
+
 BYTE PHA(Cpu *cpu) {
-  cpu->write((0x0100 | cpu->stackPtr), cpu->accumulator);
+  cpu->write((STACK_PAGE | cpu->stackPtr), cpu->accumulator);
   cpu->stackPtr -= 1;
   return 0;
 }
