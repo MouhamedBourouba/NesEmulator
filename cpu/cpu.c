@@ -14,14 +14,14 @@ struct Cpu {
 
   union {
     struct {
-      BYTE carry : 1;
-      BYTE zero : 1;
-      BYTE interruptDisable : 1;
-      BYTE decimalMode : 1;
-      BYTE breake : 1;
-      BYTE overflow : 1;
-      BYTE negative : 1;
-      BYTE unused : 1;
+      bool carry : 1;
+      bool zero : 1;
+      bool interruptDisable : 1;
+      bool decimalMode : 1;
+      bool breake : 1;
+      bool overflow : 1;
+      bool negative : 1;
+      bool unused : 1;
     };
     BYTE processorStatus;
   };
@@ -293,7 +293,8 @@ BYTE BCC(Cpu *cpu) {
 }
 
 BYTE BCS(Cpu *cpu) {
-  BYTE fetched = cpu->read(cpu->oprandAdrress);
+  if (cpu->carry) {
+  }
   return 0;
 }
 
