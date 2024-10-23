@@ -436,7 +436,9 @@ BYTE INX(Cpu *cpu) {
 }
 
 BYTE INY(Cpu *cpu) {
-  BYTE fetched = cpu->read(cpu->oprandAdrress);
+  cpu->y += 1;
+  cpu->zero = cpu->y == 0;
+  setNegativeFlag(cpu, cpu->y);
   return 0;
 }
 
@@ -555,17 +557,17 @@ BYTE SBC(Cpu *cpu) {
 }
 
 BYTE SEC(Cpu *cpu) {
-  printf("Unimplemented\n");
+  cpu->carry = 1;
   return 0;
 }
 
 BYTE SED(Cpu *cpu) {
-  printf("Unimplemented\n");
+  cpu->decimalMode = 1;
   return 0;
 }
 
 BYTE SEI(Cpu *cpu) {
-  printf("Unimplemented\n");
+  cpu->interruptDisable = 1;
   return 0;
 }
 
