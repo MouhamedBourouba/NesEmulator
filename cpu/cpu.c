@@ -421,6 +421,10 @@ BYTE EOR(Cpu *cpu) {
 
 BYTE INC(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
+  fetched += 1;
+  cpu->write(fetched, cpu->oprandAdrress);
+  cpu->zero = fetched == 0;
+  setNegativeFlag(cpu, fetched);
   return 0;
 }
 
