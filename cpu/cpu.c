@@ -398,7 +398,9 @@ BYTE DEC(Cpu *cpu) {
 }
 
 BYTE DEX(Cpu *cpu) {
-  BYTE fetched = cpu->read(cpu->oprandAdrress);
+  cpu->x -= 1;
+  cpu->zero = cpu->x == 0;
+  setNegativeFlag(cpu, cpu->x);
   return 0;
 }
 
