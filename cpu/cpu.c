@@ -244,7 +244,7 @@ BYTE IZY(Cpu *cpu) {
 
 static void setNegativeFlag(Cpu *cpu, BYTE m) {
   if (m & 0x80) {
-    cpu->zero = 1;
+    cpu->zero = true;
   }
 }
 
@@ -253,7 +253,7 @@ BYTE ADC(Cpu *cpu) {
   WORD fetched = cpu->read(cpu->oprandAdrress);
   WORD result = (WORD)cpu->accumulator + fetched + cpu->carry;
   if (result > 0xFF)
-    cpu->carry = 1;
+    cpu->carry = true;
   cpu->zero = (result & 0x00FF) == 0;
   // most complex line of my life
   cpu->overflow =
@@ -340,29 +340,29 @@ BYTE BVS(Cpu *cpu) {
 
 BYTE CLC(Cpu *cpu) {
   printf("CLEARRRED HES ASSS\n");
-  cpu->carry = 0;
+  cpu->carry = false;
   return 0;
 }
 
 BYTE CLD(Cpu *cpu) {
-  cpu->decimalMode = 0;
+  cpu->decimalMode = false;
   return 0;
 }
 
 BYTE CLI(Cpu *cpu) {
-  cpu->interruptDisable = 0;
+  cpu->interruptDisable = false;
   return 0;
 }
 
 BYTE CLV(Cpu *cpu) {
-  cpu->overflow = 0;
+  cpu->overflow = false;
   return 0;
 }
 
 BYTE CMP(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   if (fetched == cpu->accumulator) {
-    cpu->zero = 1;
+    cpu->zero = true;
   } else {
     cpu->carry = cpu->accumulator >= fetched;
   }
@@ -372,7 +372,7 @@ BYTE CMP(Cpu *cpu) {
 BYTE CPX(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   if (fetched == cpu->x) {
-    cpu->zero = 1;
+    cpu->zero = true;
   } else {
     cpu->carry = cpu->x >= fetched;
   }
@@ -382,7 +382,7 @@ BYTE CPX(Cpu *cpu) {
 BYTE CPY(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   if (fetched == cpu->y) {
-    cpu->zero = 1;
+    cpu->zero = true;
   } else {
     cpu->carry = cpu->y >= fetched;
   }
@@ -481,13 +481,13 @@ BYTE LSR(Cpu *cpu) {
     cpu->carry = fetched & 0x01;
     fetched = fetched >> 1;
     cpu->zero = fetched == 0;
-    cpu->negative = 0;
+    cpu->negative = false;
     cpu->write(cpu->oprandAdrress, fetched);
   } else {
     cpu->carry = cpu->accumulator & 0x01;
     cpu->accumulator = cpu->accumulator >> 1;
     cpu->zero = cpu->accumulator == 0;
-    cpu->negative = 0;
+    cpu->negative = false;
   }
 
   return 0;
@@ -547,7 +547,7 @@ BYTE SBC(Cpu *cpu) {
   WORD fetched = cpu->read(cpu->oprandAdrress) ^ 0x00FF;
   WORD result = (WORD)cpu->accumulator + fetched + cpu->carry;
   if (result > 0xFF)
-    cpu->carry = 1;
+    cpu->carry = true;
   cpu->zero = (result & 0x00FF) == 0;
   // most complex line of my life
   if ((((cpu->accumulator ^ result) & (cpu->accumulator ^ fetched)) & 0x0080) >
@@ -558,17 +558,17 @@ BYTE SBC(Cpu *cpu) {
 }
 
 BYTE SEC(Cpu *cpu) {
-  cpu->carry = 1;
+  cpu->carry = true;
   return 0;
 }
 
 BYTE SED(Cpu *cpu) {
-  cpu->decimalMode = 1;
+  cpu->decimalMode = true;
   return 0;
 }
 
 BYTE SEI(Cpu *cpu) {
-  cpu->interruptDisable = 1;
+  cpu->interruptDisable = true;
   return 0;
 }
 
