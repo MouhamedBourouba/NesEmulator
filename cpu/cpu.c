@@ -276,6 +276,7 @@ BYTE ASL(Cpu *cpu) {
     BYTE fetched = cpu->read(cpu->oprandAdrress);
     cpu->carry = fetched & 0x80;
     fetched = fetched << 1;
+    cpu->zero = fetched == 0;
     setNegativeFlag(cpu, (fetched & 0x80));
     cpu->write(cpu->oprandAdrress, fetched);
   } else {
