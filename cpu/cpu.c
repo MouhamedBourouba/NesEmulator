@@ -413,6 +413,9 @@ BYTE DEY(Cpu *cpu) {
 
 BYTE EOR(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
+  cpu->accumulator ^= fetched;
+  cpu->zero = cpu->accumulator == 0;
+  setNegativeFlag(cpu, cpu->accumulator);
   return 0;
 }
 
