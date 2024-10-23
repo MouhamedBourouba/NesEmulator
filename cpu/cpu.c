@@ -97,7 +97,7 @@ void Mos6502_exeInstruction(Cpu *cpu) {
 void Mos6502_printPage(Cpu *cpu, unsigned page) {
   printf("====== PageNumber %d ======\n", page);
   for (int i = 0; i < 256; i++) {
-    printf("%02X ", cpu->read((page) + i));
+    printf("%02X ", cpu->read((page >> 8) + i));
     if (!((i + 1) % 16)) {
       printf("\n");
     }
@@ -260,7 +260,7 @@ BYTE ADC(Cpu *cpu) {
       (((cpu->accumulator ^ result) & (~(cpu->accumulator ^ fetched))) &
        0x0080) > 0;
   cpu->accumulator = result & 0x00FF;
-  return 0;
+  return 1;
 }
 
 BYTE AND(Cpu *cpu) {
@@ -268,7 +268,7 @@ BYTE AND(Cpu *cpu) {
   cpu->accumulator &= fetched;
   cpu->zero = cpu->accumulator == 0;
   setNegativeFlag(cpu, cpu->accumulator);
-  return 0;
+  return 1;
 }
 
 BYTE ASL(Cpu *cpu) {
@@ -365,7 +365,7 @@ BYTE CMP(Cpu *cpu) {
   } else {
     cpu->carry = cpu->accumulator >= fetched;
   }
-  return 0;
+  return 1;
 }
 
 BYTE CPX(Cpu *cpu) {
@@ -416,7 +416,7 @@ BYTE EOR(Cpu *cpu) {
   cpu->accumulator ^= fetched;
   cpu->zero = cpu->accumulator == 0;
   setNegativeFlag(cpu, cpu->accumulator);
-  return 0;
+  return 1;
 }
 
 BYTE INC(Cpu *cpu) {
@@ -457,21 +457,21 @@ BYTE LDA(Cpu *cpu) {
   printf("LDA\n");
   cpu->zero = cpu->accumulator == 0;
   setNegativeFlag(cpu, cpu->accumulator);
-  return 0;
+  return 1;
 }
 
 BYTE LDX(Cpu *cpu) {
   cpu->x = cpu->read(cpu->oprandAdrress);
   cpu->zero = cpu->x == 0;
   setNegativeFlag(cpu, cpu->x);
-  return 0;
+  return 1;
 }
 
 BYTE LDY(Cpu *cpu) {
   cpu->y = cpu->read(cpu->oprandAdrress);
   cpu->zero = cpu->y == 0;
   setNegativeFlag(cpu, cpu->y);
-  return 0;
+  return 1;
 }
 
 BYTE LSR(Cpu *cpu) {
@@ -499,7 +499,7 @@ BYTE ORA(Cpu *cpu) {
   cpu->accumulator |= fetched;
   cpu->zero = cpu->accumulator == 0;
   setNegativeFlag(cpu, cpu->accumulator);
-  return 0;
+  return 1;
 }
 
 BYTE PHP(Cpu *cpu) {
@@ -553,7 +553,7 @@ BYTE SBC(Cpu *cpu) {
       0)
     cpu->overflow = true;
   cpu->accumulator = result & 0x00FF;
-  return 0;
+  return 1;
 }
 
 BYTE SEC(Cpu *cpu) {
