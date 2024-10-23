@@ -405,7 +405,9 @@ BYTE DEX(Cpu *cpu) {
 }
 
 BYTE DEY(Cpu *cpu) {
-  BYTE fetched = cpu->read(cpu->oprandAdrress);
+  cpu->y -= 1;
+  cpu->zero = cpu->y == 0;
+  setNegativeFlag(cpu, cpu->y);
   return 0;
 }
 
