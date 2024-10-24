@@ -242,10 +242,11 @@ BYTE IZY(Cpu *cpu) {
   return 0;
 }
 
-static void setNegativeFlag(Cpu *cpu, BYTE m) {
+static void setNegativeAndZeroFlag(Cpu *cpu, BYTE m) {
   if (m & 0x80) {
     cpu->zero = true;
   }
+  cpu->zero = (m == 0);
 }
 
 // INSTRUCTIONS
@@ -266,8 +267,7 @@ BYTE ADC(Cpu *cpu) {
 BYTE AND(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   cpu->accumulator &= fetched;
-  cpu->zero = cpu->accumulator == 0;
-  setNegativeFlag(cpu, cpu->accumulator);
+  setNegativeAndZeroFlag(cpu, cpu->accumulator);
   return 1;
 }
 
@@ -276,14 +276,12 @@ BYTE ASL(Cpu *cpu) {
     BYTE fetched = cpu->read(cpu->oprandAdrress);
     cpu->carry = fetched & 0x80;
     fetched = fetched << 1;
-    cpu->zero = fetched == 0;
-    setNegativeFlag(cpu, (fetched & 0x80));
+    setNegativeAndZeroFlag(cpu, (fetched & 0x80));
     cpu->write(cpu->oprandAdrress, fetched);
   } else {
     cpu->carry = cpu->accumulator & 0x80;
     cpu->accumulator = cpu->accumulator << 1;
-    setNegativeFlag(cpu, cpu->accumulator);
-    cpu->zero = cpu->accumulator == 0;
+    setNegativeAndZeroFlag(cpu, cpu->accumulator);
   }
   return 0;
 }
@@ -393,54 +391,49 @@ BYTE CPY(Cpu *cpu) {
 BYTE DEC(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   BYTE result = fetched - 1;
-  cpu->zero = (result == 0);
-  setNegativeFlag(cpu, result);
+  setNegativeAndZeroFlag(cpu, result);
   cpu->write(cpu->oprandAdrress, result);
   return 0;
 }
 
 BYTE DEX(Cpu *cpu) {
   cpu->x -= 1;
-  cpu->zero = cpu->x == 0;
-  setNegativeFlag(cpu, cpu->x);
+  setNegativeAndZeroFlag(cpu, cpu->x);
   return 0;
 }
 
 BYTE DEY(Cpu *cpu) {
   cpu->y -= 1;
-  cpu->zero = cpu->y == 0;
-  setNegativeFlag(cpu, cpu->y);
+  setNegativeAndZeroFlag(cpu, cpu->y);
   return 0;
 }
 
 BYTE EOR(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   cpu->accumulator ^= fetched;
-  cpu->zero = cpu->accumulator == 0;
-  setNegativeFlag(cpu, cpu->accumulator);
+  setNegativeAndZeroFlag(cpu, cpu->accumulator);
   return 1;
 }
 
 BYTE INC(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   fetched += 1;
+
   cpu->write(fetched, cpu->oprandAdrress);
-  cpu->zero = fetched == 0;
-  setNegativeFlag(cpu, fetched);
+
+  setNegativeAndZeroFlag(cpu, fetched);
   return 0;
 }
 
 BYTE INX(Cpu *cpu) {
   cpu->x += 1;
-  cpu->zero = cpu->x == 0;
-  setNegativeFlag(cpu, cpu->x);
+  setNegativeAndZeroFlag(cpu, cpu->x);
   return 0;
 }
 
 BYTE INY(Cpu *cpu) {
   cpu->y += 1;
-  cpu->zero = cpu->y == 0;
-  setNegativeFlag(cpu, cpu->y);
+  setNegativeAndZeroFlag(cpu, cpu->y);
   return 0;
 }
 
@@ -457,22 +450,19 @@ BYTE JSR(Cpu *cpu) {
 BYTE LDA(Cpu *cpu) {
   cpu->accumulator = cpu->read(cpu->oprandAdrress);
   printf("LDA\n");
-  cpu->zero = cpu->accumulator == 0;
-  setNegativeFlag(cpu, cpu->accumulator);
+  setNegativeAndZeroFlag(cpu, cpu->accumulator);
   return 1;
 }
 
 BYTE LDX(Cpu *cpu) {
   cpu->x = cpu->read(cpu->oprandAdrress);
-  cpu->zero = cpu->x == 0;
-  setNegativeFlag(cpu, cpu->x);
+  setNegativeAndZeroFlag(cpu, cpu->x);
   return 1;
 }
 
 BYTE LDY(Cpu *cpu) {
   cpu->y = cpu->read(cpu->oprandAdrress);
-  cpu->zero = cpu->y == 0;
-  setNegativeFlag(cpu, cpu->y);
+  setNegativeAndZeroFlag(cpu, cpu->y);
   return 1;
 }
 
@@ -499,8 +489,7 @@ BYTE NOP(Cpu *cpu) { return 0; }
 BYTE ORA(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   cpu->accumulator |= fetched;
-  cpu->zero = cpu->accumulator == 0;
-  setNegativeFlag(cpu, cpu->accumulator);
+  setNegativeAndZeroFlag(cpu, cpu->accumulator);
   return 1;
 }
 
@@ -513,8 +502,7 @@ BYTE PHP(Cpu *cpu) {
 BYTE PLA(Cpu *cpu) {
   cpu->stackPtr += 1;
   cpu->accumulator = cpu->read((STACK_PAGE | cpu->stackPtr));
-  cpu->zero = cpu->accumulator == 0;
-  setNegativeFlag(cpu, cpu->accumulator);
+  setNegativeAndZeroFlag(cpu, cpu->accumulator);
   return 0;
 }
 
@@ -590,43 +578,37 @@ BYTE STY(Cpu *cpu) {
 
 BYTE TAX(Cpu *cpu) {
   cpu->x = cpu->accumulator;
-  setNegativeFlag(cpu, cpu->x);
-  cpu->zero = cpu->x == 0;
+  setNegativeAndZeroFlag(cpu, cpu->x);
   return 0;
 }
 
 BYTE TAY(Cpu *cpu) {
   cpu->y = cpu->accumulator;
-  setNegativeFlag(cpu, cpu->y);
-  cpu->zero = cpu->y == 0;
+  setNegativeAndZeroFlag(cpu, cpu->y);
   return 0;
 }
 
 BYTE TSX(Cpu *cpu) {
   cpu->x = cpu->stackPtr;
-  setNegativeFlag(cpu, cpu->x);
-  cpu->zero = cpu->x == 0;
+  setNegativeAndZeroFlag(cpu, cpu->x);
   return 0;
 }
 
 BYTE TXA(Cpu *cpu) {
   cpu->x = cpu->accumulator;
-  setNegativeFlag(cpu, cpu->x);
-  cpu->zero = cpu->x == 0;
+  setNegativeAndZeroFlag(cpu, cpu->x);
   return 0;
 }
 
 BYTE TXS(Cpu *cpu) {
-  cpu->x = cpu->stackPtr;
-  setNegativeFlag(cpu, cpu->x);
-  cpu->zero = cpu->x == 0;
+  cpu->stackPtr = cpu->x;
+  setNegativeAndZeroFlag(cpu, cpu->stackPtr);
   return 0;
 }
 
 BYTE TYA(Cpu *cpu) {
   cpu->y = cpu->accumulator;
-  setNegativeFlag(cpu, cpu->y);
-  cpu->zero = cpu->y == 0;
+  setNegativeAndZeroFlag(cpu, cpu->y);
   return 0;
 }
 
