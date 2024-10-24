@@ -617,12 +617,16 @@ BYTE TXA(Cpu *cpu) {
 }
 
 BYTE TXS(Cpu *cpu) {
-  printf("Unimplemented\n");
+  cpu->x = cpu->stackPtr;
+  setNegativeFlag(cpu, cpu->x);
+  cpu->zero = cpu->x == 0;
   return 0;
 }
 
 BYTE TYA(Cpu *cpu) {
-  printf("Unimplemented\n");
+  cpu->y = cpu->accumulator;
+  setNegativeFlag(cpu, cpu->y);
+  cpu->zero = cpu->y == 0;
   return 0;
 }
 
