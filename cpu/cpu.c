@@ -1,6 +1,7 @@
 #include "cpu.h"
 #include <assert.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -513,7 +514,19 @@ BYTE PLP(Cpu *cpu) {
 }
 
 BYTE ROL(Cpu *cpu) {
-  printf("Unimplemented\n");
+  if (cpu->isCurrentInstImplide) {
+    uint16_t temp = cpu->accumulator << 1 | cpu->carry;
+    cpu->carry = temp & 0XFF00;
+    setNegativeAndZeroFlag(cpu, (temp & 0X00FF));
+    cpu->accumulator = temp & 0X00FF;
+  } else {
+    BYTE fetched = cpu->read(cpu->oprandAdrress);
+    uint16_t temp = fetched << 1 | cpu->carry;
+    cpu->carry = temp & 0XFF00;
+    setNegativeAndZeroFlag(cpu, (temp & 0X00FF));
+    cpu->accumulator = temp & 0X00FF;
+    cpu->write(cpu->oprandAdrress, temp & 0X00FF);
+  }
   return 0;
 }
 
