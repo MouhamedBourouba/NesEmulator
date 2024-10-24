@@ -524,14 +524,24 @@ BYTE ROL(Cpu *cpu) {
     uint16_t temp = fetched << 1 | cpu->carry;
     cpu->carry = temp & 0XFF00;
     setNegativeAndZeroFlag(cpu, (temp & 0X00FF));
-    cpu->accumulator = temp & 0X00FF;
     cpu->write(cpu->oprandAdrress, temp & 0X00FF);
   }
   return 0;
 }
 
 BYTE ROR(Cpu *cpu) {
-  printf("Unimplemented\n");
+  if (cpu->isCurrentInstImplide) {
+    uint16_t temp = (cpu->carry << 7) | cpu->accumulator >> 1;
+    cpu->carry = cpu->accumulator & 0x01;
+    setNegativeAndZeroFlag(cpu, (temp & 0X00FF));
+    cpu->accumulator = temp & 0X00FF;
+  } else {
+    BYTE fetched = cpu->read(cpu->oprandAdrress);
+    uint16_t temp = (cpu->carry << 7) | fetched >> 1;
+    cpu->carry = temp & 0x01;
+    setNegativeAndZeroFlag(cpu, (temp & 0X00FF));
+    cpu->write(cpu->oprandAdrress, temp & 0X00FF);
+  }
   return 0;
 }
 
