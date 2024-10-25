@@ -549,9 +549,7 @@ BYTE RTI(Cpu *cpu) {
   cpu->stackPtr += 1;
   BYTE pcHi = cpu->read(0x0100 | cpu->stackPtr);
 
-  WORD pc = (pcHi << 4) & pcLo;
-
-  cpu->programCounter = pc;
+  cpu->programCounter = (pcHi << 8) | pcLo;
   cpu->processorStatus = ps;
 
   cpu->breake = false;
@@ -561,7 +559,12 @@ BYTE RTI(Cpu *cpu) {
 }
 
 BYTE RTS(Cpu *cpu) {
-  printf("Unimplemented\n");
+  cpu->stackPtr += 1;
+  BYTE pcLo = cpu->read(0x0100 | cpu->stackPtr);
+  cpu->stackPtr += 1;
+  BYTE pcHi = cpu->read(0x0100 | cpu->stackPtr);
+
+  cpu->programCounter = ((pcHi << 8) | pcLo) + 1;
   return 0;
 }
 
