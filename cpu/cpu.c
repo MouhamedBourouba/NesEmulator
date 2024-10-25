@@ -1,5 +1,6 @@
 #include "cpu.h"
 #include <assert.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -287,53 +288,39 @@ BYTE ASL(Cpu *cpu) {
   return 0;
 }
 
-BYTE BCC(Cpu *cpu) {
-  BYTE fetched = cpu->read(cpu->oprandAdrress);
-  return 0;
-}
-
-BYTE BCS(Cpu *cpu) {
-  if (cpu->carry) {
+BYTE BrachIf(Cpu *cpu, bool predicate) {
+  if (predicate) {
+    cpu->cycles += 1;
+    uint16_t temp = cpu->programCounter + cpu->oprandAdrress;
+    if ((cpu->programCounter & 0XFF00) != (temp & 0XFF00))
+      cpu->cycles += 1;
+    cpu->programCounter = temp;
   }
   return 0;
 }
 
-BYTE BEQ(Cpu *cpu) {
-  BYTE fetched = cpu->read(cpu->oprandAdrress);
-  return 0;
-}
+BYTE BCC(Cpu *cpu) { return BrachIf(cpu, !cpu->carry); }
 
+BYTE BCS(Cpu *cpu) { return BrachIf(cpu, cpu->carry); }
+
+BYTE BEQ(Cpu *cpu) { return BrachIf(cpu, cpu->zero); }
+
+BYTE BMI(Cpu *cpu) { return BrachIf(cpu, cpu->negative); }
+
+BYTE BNE(Cpu *cpu) { return BrachIf(cpu, !cpu->zero); }
+
+BYTE BPL(Cpu *cpu) { return BrachIf(cpu, !cpu->negative); }
+
+BYTE BVC(Cpu *cpu) { return BrachIf(cpu, cpu->overflow); }
+
+BYTE BVS(Cpu *cpu) { return BrachIf(cpu, cpu->overflow); }
+// TODO
 BYTE BIT(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 
-BYTE BMI(Cpu *cpu) {
-  BYTE fetched = cpu->read(cpu->oprandAdrress);
-  return 0;
-}
-
-BYTE BNE(Cpu *cpu) {
-  BYTE fetched = cpu->read(cpu->oprandAdrress);
-  return 0;
-}
-
-BYTE BPL(Cpu *cpu) {
-  BYTE fetched = cpu->read(cpu->oprandAdrress);
-  return 0;
-}
-
 BYTE BRK(Cpu *cpu) {
-  BYTE fetched = cpu->read(cpu->oprandAdrress);
-  return 0;
-}
-
-BYTE BVC(Cpu *cpu) {
-  BYTE fetched = cpu->read(cpu->oprandAdrress);
-  return 0;
-}
-
-BYTE BVS(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
@@ -545,10 +532,7 @@ BYTE ROR(Cpu *cpu) {
   return 0;
 }
 
-BYTE RTI(Cpu *cpu) {
-  printf("Unimplemented\n");
-  return 0;
-}
+BYTE RTI(Cpu *cpu) { return 0; }
 
 BYTE RTS(Cpu *cpu) {
   printf("Unimplemented\n");
