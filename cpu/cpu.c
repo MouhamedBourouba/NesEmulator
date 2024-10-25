@@ -288,7 +288,7 @@ BYTE ASL(Cpu *cpu) {
   return 0;
 }
 
-BYTE BrachIf(Cpu *cpu, bool predicate) {
+static BYTE BrachIf(Cpu *cpu, bool predicate) {
   if (predicate) {
     cpu->cycles += 1;
     uint16_t temp = cpu->programCounter + cpu->oprandAdrress;
@@ -305,18 +305,26 @@ BYTE BCS(Cpu *cpu) { return BrachIf(cpu, cpu->carry); }
 
 BYTE BEQ(Cpu *cpu) { return BrachIf(cpu, cpu->zero); }
 
-BYTE BMI(Cpu *cpu) { return BrachIf(cpu, cpu->negative); }
-
 BYTE BNE(Cpu *cpu) { return BrachIf(cpu, !cpu->zero); }
+
+BYTE BMI(Cpu *cpu) { return BrachIf(cpu, cpu->negative); }
 
 BYTE BPL(Cpu *cpu) { return BrachIf(cpu, !cpu->negative); }
 
 BYTE BVC(Cpu *cpu) { return BrachIf(cpu, cpu->overflow); }
 
 BYTE BVS(Cpu *cpu) { return BrachIf(cpu, cpu->overflow); }
+
 // TODO
 BYTE BIT(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
+  BYTE temp = fetched & cpu->accumulator;
+
+  setNegativeAndZeroFlag(cpu, temp);
+
+  // testing the 6`th bit
+  cpu->overflow = (temp & 0x40) > 0;
+
   return 0;
 }
 
@@ -532,7 +540,25 @@ BYTE ROR(Cpu *cpu) {
   return 0;
 }
 
-BYTE RTI(Cpu *cpu) { return 0; }
+BYTE RTI(Cpu *cpu) {
+  cpu->stackPtr += 1;
+  BYTE ps = cpu->read(0x0100 | cpu->stackPtr);
+
+  cpu->stackPtr += 1;
+  BYTE pcLo = cpu->read(0x0100 | cpu->stackPtr);
+  cpu->stackPtr += 1;
+  BYTE pcHi = cpu->read(0x0100 | cpu->stackPtr);
+
+  WORD pc = (pcHi << 4) & pcLo;
+
+  cpu->programCounter = pc;
+  cpu->processorStatus = ps;
+
+  cpu->breake = false;
+  cpu->unused = false;
+
+  return 0;
+}
 
 BYTE RTS(Cpu *cpu) {
   printf("Unimplemented\n");
