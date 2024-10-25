@@ -1,6 +1,5 @@
 #include "cpu.h"
 #include <assert.h>
-#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -21,9 +20,9 @@ struct Cpu {
       bool interruptDisable : 1;
       bool decimalMode : 1;
       bool breake : 1;
+      bool unused : 1;
       bool overflow : 1;
       bool negative : 1;
-      bool unused : 1;
     };
     BYTE processorStatus;
   };
@@ -315,7 +314,6 @@ BYTE BVC(Cpu *cpu) { return BrachIf(cpu, cpu->overflow); }
 
 BYTE BVS(Cpu *cpu) { return BrachIf(cpu, cpu->overflow); }
 
-// TODO
 BYTE BIT(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   BYTE temp = fetched & cpu->accumulator;
