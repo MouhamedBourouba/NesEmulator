@@ -28,6 +28,7 @@ struct Cpu {
   };
 
   uint8_t cycles;
+  BYTE opcode;
   WORD oprandAdrress;
   bool isCurrentInstImplide;
 
@@ -42,11 +43,11 @@ typedef struct {
   BYTE cycels;
 } Instruction;
 
+static const Instruction INSTRUCTIONS_LOOKUP_TABLE[];
+
 static BYTE fetchAndIcrementPC(Cpu *cpu) {
   return cpu->read(cpu->programCounter++);
 }
-
-static const Instruction INSTRUCTIONS_LOOKUP_TABLE[];
 
 Cpu *Mos6502_create(Readfun read, Writefun write) {
   Cpu *cpu = malloc(sizeof(Cpu));
@@ -75,6 +76,7 @@ void Mos6502_destroy(Cpu *cpu) { free(cpu); }
 void Mos6502_tick(Cpu *cpu) {
   if (cpu->cycles == 0) {
     BYTE instIndex = fetchAndIcrementPC(cpu);
+    cpu->opcode = instIndex;
     Instruction currentInst = INSTRUCTIONS_LOOKUP_TABLE[instIndex];
 
     uint8_t cyclesAdd1 = currentInst.addrmode(cpu);
@@ -327,12 +329,30 @@ BYTE BIT(Cpu *cpu) {
 }
 
 BYTE BRK(Cpu *cpu) {
-  BYTE fetched = cpu->read(cpu->oprandAdrress);
+  cpu->programCounter += 1;
+  cpu->interruptDisable = true;
+
+  cpu->write(0x0100 + cpu->stackPtr, (cpu->programCounter >> 8) & 0x00FF);
+
+  cpu->stackPtr -= 1;
+
+  cpu->write(0x0100 + cpu->stackPtr, cpu->programCounter & 0x00FF);
+  cpu->stackPtr -= 1;
+
+  cpu->breake = true;
+
+  cpu->write(0x0100 + cpu->stackPtr, cpu->processorStatus);
+  cpu->stackPtr--;
+
+  cpu->breake = false;
+
+  cpu->programCounter =
+      (uint16_t)cpu->read(0xFFFE) | ((uint16_t)cpu->read(0xFFFF) << 8);
+
   return 0;
 }
 
 BYTE CLC(Cpu *cpu) {
-  printf("CLEARRRED HES ASSS\n");
   cpu->carry = false;
   return 0;
 }
@@ -478,7 +498,19 @@ BYTE LSR(Cpu *cpu) {
   return 0;
 }
 
-BYTE NOP(Cpu *cpu) { return 0; }
+BYTE NOP(Cpu *cpu) {
+  switch (cpu->opcode) {
+  case 0x1C:
+  case 0x3C:
+  case 0x5C:
+  case 0x7C:
+  case 0xDC:
+  case 0xFC:
+    return 1;
+    break;
+  }
+  return 0;
+}
 
 BYTE ORA(Cpu *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
@@ -652,10 +684,7 @@ BYTE PHA(Cpu *cpu) {
   return 0;
 }
 
-BYTE XXX(Cpu *cpu) {
-  printf("Illegal Oppcode\n");
-  return 0;
-}
+BYTE XXX(Cpu *cpu) { return 0; }
 
 // clang-format off
 static const Instruction INSTRUCTIONS_LOOKUP_TABLE[] = {
