@@ -32,8 +32,8 @@ struct Cpu {
   WORD oprandAdrress;
   bool isCurrentInstImplide;
 
-  Readfun read;
-  Writefun write;
+  read_func_t read;
+  write_func_t write;
 };
 
 typedef struct {
@@ -49,7 +49,7 @@ static BYTE fetchAndIcrementPC(Cpu *cpu) {
   return cpu->read(cpu->programCounter++);
 }
 
-Cpu *Mos6502_create(Readfun read, Writefun write) {
+Cpu *Mos6502_create(read_func_t read, write_func_t write) {
   Cpu *cpu = malloc(sizeof(Cpu));
   cpu->read = read;
   cpu->write = write;

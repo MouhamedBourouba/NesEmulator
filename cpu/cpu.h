@@ -8,10 +8,10 @@ typedef uint16_t WORD;
 
 typedef struct Cpu Cpu;
 
-typedef BYTE (*Readfun)(WORD);
-typedef void (*Writefun)(WORD, BYTE);
+typedef BYTE (*read_func_t)(WORD);
+typedef void (*write_func_t)(WORD, BYTE);
 
-Cpu *Mos6502_create(Readfun read, Writefun write);
+Cpu *Mos6502_create(read_func_t read, write_func_t write);
 void Mos6502_destroy(Cpu *cpu);
 void Mos6502_reset(Cpu *cpu);
 void Mos6502_tick(Cpu *cpu);
