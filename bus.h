@@ -22,5 +22,7 @@ Bus* createBus() {
   return &bus;
 }
 
-BYTE busRead(Bus* bus, WORD address);
+BYTE busRead(Bus* bus, WORD address) {
+
+};
 void busWrite(Bus* bus, BYTE value ,WORD address);

@@ -8,7 +8,7 @@
 #define RESET_VECTOR_LOW 0xFFFA
 #define STACK_PAGE 0x0100
 
-struct Cpu {
+struct Mos6502 {
   BYTE stackPtr;
   WORD programCounter;
   BYTE accumulator, x, y;
@@ -38,27 +38,27 @@ struct Cpu {
 
 typedef struct {
   const char *name;
-  BYTE (*operate)(Cpu *);
-  BYTE (*addrmode)(Cpu *);
+  BYTE (*operate)(Mos6502 *);
+  BYTE (*addrmode)(Mos6502 *);
   BYTE cycels;
 } Instruction;
 
 static const Instruction INSTRUCTIONS_LOOKUP_TABLE[];
 
-static BYTE fetchAndIcrementPC(Cpu *cpu) {
+static BYTE fetchAndIcrementPC(Mos6502 *cpu) {
   return cpu->read(cpu->programCounter++);
 }
 
-Cpu *Mos6502_create(read_func_t read, write_func_t write) {
-  Cpu *cpu = malloc(sizeof(Cpu));
+Mos6502 *Mos6502_create(read_func_t read, write_func_t write) {
+  Mos6502 *cpu = malloc(sizeof(Cpu));
   cpu->read = read;
   cpu->write = write;
   Mos6502_reset(cpu);
-  printf("Cpu created\n\tprogram counter: %#X\n", cpu->programCounter);
+  printf("Mos6502 created\n\tprogram counter: %#X\n", cpu->programCounter);
   return cpu;
 }
 
-void Mos6502_reset(Cpu *cpu) {
+void Mos6502_reset(Mos6502 *cpu) {
   cpu->processorStatus = 0;
   cpu->stackPtr = 0xFD;
   cpu->x = cpu->y = cpu->accumulator = 0;
@@ -71,9 +71,9 @@ void Mos6502_reset(Cpu *cpu) {
   cpu->cycles = 8;
 }
 
-void Mos6502_destroy(Cpu *cpu) { free(cpu); }
+void Mos6502_destroy(Mos6502 *cpu) { free(cpu); }
 
-void Mos6502_tick(Cpu *cpu) {
+void Mos6502_tick(Mos6502 *cpu) {
   if (cpu->cycles == 0) {
     BYTE instIndex = fetchAndIcrementPC(cpu);
     cpu->opcode = instIndex;
@@ -89,7 +89,7 @@ void Mos6502_tick(Cpu *cpu) {
   }
 }
 
-void Mos6502_exeInstruction(Cpu *cpu) {
+void Mos6502_exeInstruction(Mos6502 *cpu) {
   while (cpu->cycles > 0)
     Mos6502_tick(cpu);
   Mos6502_tick(cpu);
@@ -97,7 +97,7 @@ void Mos6502_exeInstruction(Cpu *cpu) {
     Mos6502_tick(cpu);
 }
 
-void Mos6502_printPage(Cpu *cpu, unsigned page) {
+void Mos6502_printPage(Mos6502 *cpu, unsigned page) {
   printf("====== PageNumber %d ======\n", page);
   for (int i = 0; i < 256; i++) {
     printf("%02X ", cpu->read((page >> 8) + i));
@@ -107,17 +107,17 @@ void Mos6502_printPage(Cpu *cpu, unsigned page) {
   };
 };
 
-void Mos6502_printZeroPage(Cpu *cpu) {
+void Mos6502_printZeroPage(Mos6502 *cpu) {
   printf("====== ZeroPage ======\n");
   Mos6502_printPage(cpu, 0);
 }
 
-void Mos6502_printStack(Cpu *cpu) {
+void Mos6502_printStack(Mos6502 *cpu) {
   printf("====== Stack ======\n");
   Mos6502_printPage(cpu, 1);
 }
 
-void Mos6502_dump(Cpu *cpu) {
+void Mos6502_dump(Mos6502 *cpu) {
   printf("====== 6502 CPU DUMP ======\n");
   printf("Program Counter: 0x%04X\n", cpu->programCounter);
   printf("Stack Pointer: 0x%02X\n", cpu->stackPtr);
@@ -131,48 +131,48 @@ void Mos6502_dump(Cpu *cpu) {
   printf("===========================\n");
 }
 
-bool Mos6502_getCarry(Cpu *cpu) { return cpu->carry; }
+bool Mos6502_getCarry(Mos6502 *cpu) { return cpu->carry; }
 
-bool Mos6502_getZero(Cpu *cpu) { return cpu->zero; }
+bool Mos6502_getZero(Mos6502 *cpu) { return cpu->zero; }
 
-bool Mos6502_getInterruptDisable(Cpu *cpu) { return cpu->interruptDisable; }
+bool Mos6502_getInterruptDisable(Mos6502 *cpu) { return cpu->interruptDisable; }
 
-bool Mos6502_getDecimalMode(Cpu *cpu) { return cpu->decimalMode; }
+bool Mos6502_getDecimalMode(Mos6502 *cpu) { return cpu->decimalMode; }
 
-bool Mos6502_getBreake(Cpu *cpu) { return cpu->breake; }
+bool Mos6502_getBreake(Mos6502 *cpu) { return cpu->breake; }
 
-bool Mos6502_getOverflow(Cpu *cpu) { return cpu->overflow; }
+bool Mos6502_getOverflow(Mos6502 *cpu) { return cpu->overflow; }
 
-bool Mos6502_getNegative(Cpu *cpu) { return cpu->negative; }
+bool Mos6502_getNegative(Mos6502 *cpu) { return cpu->negative; }
 
 // ADDR modes
-BYTE IMP(Cpu *cpu) {
+BYTE IMP(Mos6502 *cpu) {
   cpu->isCurrentInstImplide = true;
   return 0;
 }
 
-BYTE IMM(Cpu *cpu) {
+BYTE IMM(Mos6502 *cpu) {
   cpu->oprandAdrress = cpu->programCounter++;
   return 0;
 }
 
-BYTE ZP0(Cpu *cpu) {
+BYTE ZP0(Mos6502 *cpu) {
   BYTE lsb = fetchAndIcrementPC(cpu);
   cpu->oprandAdrress = (lsb & 0x00FF);
   return 0;
 }
 
-BYTE ZPX(Cpu *cpu) {
+BYTE ZPX(Mos6502 *cpu) {
   cpu->oprandAdrress = ((fetchAndIcrementPC(cpu) + cpu->x) & 0x00FF);
   return 0;
 }
 
-BYTE ZPY(Cpu *cpu) {
+BYTE ZPY(Mos6502 *cpu) {
   cpu->oprandAdrress = ((fetchAndIcrementPC(cpu) + cpu->y) & 0x00FF);
   return 0;
 }
 
-BYTE REL(Cpu *cpu) {
+BYTE REL(Mos6502 *cpu) {
   cpu->oprandAdrress = fetchAndIcrementPC(cpu);
   if (cpu->oprandAdrress & 0x80) {
     cpu->oprandAdrress |= 0xFF00;
@@ -180,14 +180,14 @@ BYTE REL(Cpu *cpu) {
   return 0;
 }
 
-BYTE ABS(Cpu *cpu) {
+BYTE ABS(Mos6502 *cpu) {
   BYTE addressLow = fetchAndIcrementPC(cpu);
   BYTE addressHigh = fetchAndIcrementPC(cpu);
   cpu->oprandAdrress = (addressHigh << 8) | addressLow;
   return 0;
 }
 
-BYTE ABX(Cpu *cpu) {
+BYTE ABX(Mos6502 *cpu) {
   BYTE addressLow = fetchAndIcrementPC(cpu);
   BYTE addressHigh = fetchAndIcrementPC(cpu);
   cpu->oprandAdrress = (addressHigh << 8) | addressLow;
@@ -199,7 +199,7 @@ BYTE ABX(Cpu *cpu) {
   return 0;
 }
 
-BYTE ABY(Cpu *cpu) {
+BYTE ABY(Mos6502 *cpu) {
   BYTE addressLow = fetchAndIcrementPC(cpu);
   BYTE addressHigh = fetchAndIcrementPC(cpu);
 
@@ -212,7 +212,7 @@ BYTE ABY(Cpu *cpu) {
   return 0;
 }
 
-BYTE IND(Cpu *cpu) {
+BYTE IND(Mos6502 *cpu) {
   BYTE ptrLow = fetchAndIcrementPC(cpu);
   BYTE ptrHigh = fetchAndIcrementPC(cpu);
   WORD ptr = (ptrHigh << 8) | ptrLow;
@@ -221,7 +221,7 @@ BYTE IND(Cpu *cpu) {
   return 0;
 }
 
-BYTE IZX(Cpu *cpu) {
+BYTE IZX(Mos6502 *cpu) {
   BYTE table = fetchAndIcrementPC(cpu);
 
   BYTE addrLow = cpu->read((WORD)(table + cpu->x) & 0x00FF);
@@ -231,7 +231,7 @@ BYTE IZX(Cpu *cpu) {
   return 0;
 }
 
-BYTE IZY(Cpu *cpu) {
+BYTE IZY(Mos6502 *cpu) {
   BYTE table = fetchAndIcrementPC(cpu);
 
   BYTE addrLow = cpu->read((WORD)(table) & 0x00FF);
@@ -245,7 +245,7 @@ BYTE IZY(Cpu *cpu) {
   return 0;
 }
 
-static void setNegativeAndZeroFlag(Cpu *cpu, BYTE m) {
+static void setNegativeAndZeroFlag(Mos6502 *cpu, BYTE m) {
   if (m & 0x80) {
     cpu->zero = true;
   }
@@ -253,7 +253,7 @@ static void setNegativeAndZeroFlag(Cpu *cpu, BYTE m) {
 }
 
 // INSTRUCTIONS
-BYTE ADC(Cpu *cpu) {
+BYTE ADC(Mos6502 *cpu) {
   WORD fetched = cpu->read(cpu->oprandAdrress);
   WORD result = (WORD)cpu->accumulator + fetched + cpu->carry;
   if (result > 0xFF)
@@ -267,14 +267,14 @@ BYTE ADC(Cpu *cpu) {
   return 1;
 }
 
-BYTE AND(Cpu *cpu) {
+BYTE AND(Mos6502 *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   cpu->accumulator &= fetched;
   setNegativeAndZeroFlag(cpu, cpu->accumulator);
   return 1;
 }
 
-BYTE ASL(Cpu *cpu) {
+BYTE ASL(Mos6502 *cpu) {
   if (!cpu->isCurrentInstImplide) {
     BYTE fetched = cpu->read(cpu->oprandAdrress);
     cpu->carry = fetched & 0x80;
@@ -289,7 +289,7 @@ BYTE ASL(Cpu *cpu) {
   return 0;
 }
 
-static BYTE BrachIf(Cpu *cpu, bool predicate) {
+static BYTE BrachIf(Mos6502 *cpu, bool predicate) {
   if (predicate) {
     cpu->cycles += 1;
     uint16_t temp = cpu->programCounter + cpu->oprandAdrress;
@@ -300,23 +300,23 @@ static BYTE BrachIf(Cpu *cpu, bool predicate) {
   return 0;
 }
 
-BYTE BCC(Cpu *cpu) { return BrachIf(cpu, !cpu->carry); }
+BYTE BCC(Mos6502 *cpu) { return BrachIf(cpu, !cpu->carry); }
 
-BYTE BCS(Cpu *cpu) { return BrachIf(cpu, cpu->carry); }
+BYTE BCS(Mos6502 *cpu) { return BrachIf(cpu, cpu->carry); }
 
-BYTE BEQ(Cpu *cpu) { return BrachIf(cpu, cpu->zero); }
+BYTE BEQ(Mos6502 *cpu) { return BrachIf(cpu, cpu->zero); }
 
-BYTE BNE(Cpu *cpu) { return BrachIf(cpu, !cpu->zero); }
+BYTE BNE(Mos6502 *cpu) { return BrachIf(cpu, !cpu->zero); }
 
-BYTE BMI(Cpu *cpu) { return BrachIf(cpu, cpu->negative); }
+BYTE BMI(Mos6502 *cpu) { return BrachIf(cpu, cpu->negative); }
 
-BYTE BPL(Cpu *cpu) { return BrachIf(cpu, !cpu->negative); }
+BYTE BPL(Mos6502 *cpu) { return BrachIf(cpu, !cpu->negative); }
 
-BYTE BVC(Cpu *cpu) { return BrachIf(cpu, cpu->overflow); }
+BYTE BVC(Mos6502 *cpu) { return BrachIf(cpu, cpu->overflow); }
 
-BYTE BVS(Cpu *cpu) { return BrachIf(cpu, cpu->overflow); }
+BYTE BVS(Mos6502 *cpu) { return BrachIf(cpu, cpu->overflow); }
 
-BYTE BIT(Cpu *cpu) {
+BYTE BIT(Mos6502 *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   BYTE temp = fetched & cpu->accumulator;
 
@@ -328,7 +328,7 @@ BYTE BIT(Cpu *cpu) {
   return 0;
 }
 
-BYTE BRK(Cpu *cpu) {
+BYTE BRK(Mos6502 *cpu) {
   cpu->programCounter += 1;
   cpu->interruptDisable = true;
 
@@ -352,27 +352,27 @@ BYTE BRK(Cpu *cpu) {
   return 0;
 }
 
-BYTE CLC(Cpu *cpu) {
+BYTE CLC(Mos6502 *cpu) {
   cpu->carry = false;
   return 0;
 }
 
-BYTE CLD(Cpu *cpu) {
+BYTE CLD(Mos6502 *cpu) {
   cpu->decimalMode = false;
   return 0;
 }
 
-BYTE CLI(Cpu *cpu) {
+BYTE CLI(Mos6502 *cpu) {
   cpu->interruptDisable = false;
   return 0;
 }
 
-BYTE CLV(Cpu *cpu) {
+BYTE CLV(Mos6502 *cpu) {
   cpu->overflow = false;
   return 0;
 }
 
-BYTE CMP(Cpu *cpu) {
+BYTE CMP(Mos6502 *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   if (fetched == cpu->accumulator) {
     cpu->zero = true;
@@ -382,7 +382,7 @@ BYTE CMP(Cpu *cpu) {
   return 1;
 }
 
-BYTE CPX(Cpu *cpu) {
+BYTE CPX(Mos6502 *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   if (fetched == cpu->x) {
     cpu->zero = true;
@@ -392,7 +392,7 @@ BYTE CPX(Cpu *cpu) {
   return 0;
 }
 
-BYTE CPY(Cpu *cpu) {
+BYTE CPY(Mos6502 *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   if (fetched == cpu->y) {
     cpu->zero = true;
@@ -402,7 +402,7 @@ BYTE CPY(Cpu *cpu) {
   return 0;
 }
 
-BYTE DEC(Cpu *cpu) {
+BYTE DEC(Mos6502 *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   BYTE result = fetched - 1;
   setNegativeAndZeroFlag(cpu, result);
@@ -410,26 +410,26 @@ BYTE DEC(Cpu *cpu) {
   return 0;
 }
 
-BYTE DEX(Cpu *cpu) {
+BYTE DEX(Mos6502 *cpu) {
   cpu->x -= 1;
   setNegativeAndZeroFlag(cpu, cpu->x);
   return 0;
 }
 
-BYTE DEY(Cpu *cpu) {
+BYTE DEY(Mos6502 *cpu) {
   cpu->y -= 1;
   setNegativeAndZeroFlag(cpu, cpu->y);
   return 0;
 }
 
-BYTE EOR(Cpu *cpu) {
+BYTE EOR(Mos6502 *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   cpu->accumulator ^= fetched;
   setNegativeAndZeroFlag(cpu, cpu->accumulator);
   return 1;
 }
 
-BYTE INC(Cpu *cpu) {
+BYTE INC(Mos6502 *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   fetched += 1;
 
@@ -439,48 +439,48 @@ BYTE INC(Cpu *cpu) {
   return 0;
 }
 
-BYTE INX(Cpu *cpu) {
+BYTE INX(Mos6502 *cpu) {
   cpu->x += 1;
   setNegativeAndZeroFlag(cpu, cpu->x);
   return 0;
 }
 
-BYTE INY(Cpu *cpu) {
+BYTE INY(Mos6502 *cpu) {
   cpu->y += 1;
   setNegativeAndZeroFlag(cpu, cpu->y);
   return 0;
 }
 
-BYTE JMP(Cpu *cpu) {
+BYTE JMP(Mos6502 *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 
-BYTE JSR(Cpu *cpu) {
+BYTE JSR(Mos6502 *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   return 0;
 }
 
-BYTE LDA(Cpu *cpu) {
+BYTE LDA(Mos6502 *cpu) {
   cpu->accumulator = cpu->read(cpu->oprandAdrress);
   printf("LDA\n");
   setNegativeAndZeroFlag(cpu, cpu->accumulator);
   return 1;
 }
 
-BYTE LDX(Cpu *cpu) {
+BYTE LDX(Mos6502 *cpu) {
   cpu->x = cpu->read(cpu->oprandAdrress);
   setNegativeAndZeroFlag(cpu, cpu->x);
   return 1;
 }
 
-BYTE LDY(Cpu *cpu) {
+BYTE LDY(Mos6502 *cpu) {
   cpu->y = cpu->read(cpu->oprandAdrress);
   setNegativeAndZeroFlag(cpu, cpu->y);
   return 1;
 }
 
-BYTE LSR(Cpu *cpu) {
+BYTE LSR(Mos6502 *cpu) {
   if (!cpu->isCurrentInstImplide) {
     BYTE fetched = cpu->read(cpu->oprandAdrress);
     cpu->carry = fetched & 0x01;
@@ -498,7 +498,7 @@ BYTE LSR(Cpu *cpu) {
   return 0;
 }
 
-BYTE NOP(Cpu *cpu) {
+BYTE NOP(Mos6502 *cpu) {
   switch (cpu->opcode) {
   case 0x1C:
   case 0x3C:
@@ -512,33 +512,33 @@ BYTE NOP(Cpu *cpu) {
   return 0;
 }
 
-BYTE ORA(Cpu *cpu) {
+BYTE ORA(Mos6502 *cpu) {
   BYTE fetched = cpu->read(cpu->oprandAdrress);
   cpu->accumulator |= fetched;
   setNegativeAndZeroFlag(cpu, cpu->accumulator);
   return 1;
 }
 
-BYTE PHP(Cpu *cpu) {
+BYTE PHP(Mos6502 *cpu) {
   cpu->stackPtr -= 1;
   cpu->write((STACK_PAGE | cpu->stackPtr), cpu->processorStatus);
   return 0;
 }
 
-BYTE PLA(Cpu *cpu) {
+BYTE PLA(Mos6502 *cpu) {
   cpu->stackPtr += 1;
   cpu->accumulator = cpu->read((STACK_PAGE | cpu->stackPtr));
   setNegativeAndZeroFlag(cpu, cpu->accumulator);
   return 0;
 }
 
-BYTE PLP(Cpu *cpu) {
+BYTE PLP(Mos6502 *cpu) {
   cpu->processorStatus = cpu->read((STACK_PAGE | cpu->stackPtr));
   cpu->stackPtr += 1;
   return 0;
 }
 
-BYTE ROL(Cpu *cpu) {
+BYTE ROL(Mos6502 *cpu) {
   if (cpu->isCurrentInstImplide) {
     uint16_t temp = cpu->accumulator << 1 | cpu->carry;
     cpu->carry = temp & 0XFF00;
@@ -554,7 +554,7 @@ BYTE ROL(Cpu *cpu) {
   return 0;
 }
 
-BYTE ROR(Cpu *cpu) {
+BYTE ROR(Mos6502 *cpu) {
   if (cpu->isCurrentInstImplide) {
     uint16_t temp = (cpu->carry << 7) | cpu->accumulator >> 1;
     cpu->carry = cpu->accumulator & 0x01;
@@ -570,7 +570,7 @@ BYTE ROR(Cpu *cpu) {
   return 0;
 }
 
-BYTE RTI(Cpu *cpu) {
+BYTE RTI(Mos6502 *cpu) {
   cpu->stackPtr += 1;
   BYTE ps = cpu->read(0x0100 | cpu->stackPtr);
 
@@ -588,7 +588,7 @@ BYTE RTI(Cpu *cpu) {
   return 0;
 }
 
-BYTE RTS(Cpu *cpu) {
+BYTE RTS(Mos6502 *cpu) {
   cpu->stackPtr += 1;
   BYTE pcLo = cpu->read(0x0100 | cpu->stackPtr);
   cpu->stackPtr += 1;
@@ -598,7 +598,7 @@ BYTE RTS(Cpu *cpu) {
   return 0;
 }
 
-BYTE SBC(Cpu *cpu) {
+BYTE SBC(Mos6502 *cpu) {
   WORD fetched = cpu->read(cpu->oprandAdrress) ^ 0x00FF;
   WORD result = (WORD)cpu->accumulator + fetched + cpu->carry;
   if (result > 0xFF)
@@ -612,79 +612,79 @@ BYTE SBC(Cpu *cpu) {
   return 1;
 }
 
-BYTE SEC(Cpu *cpu) {
+BYTE SEC(Mos6502 *cpu) {
   cpu->carry = true;
   return 0;
 }
 
-BYTE SED(Cpu *cpu) {
+BYTE SED(Mos6502 *cpu) {
   cpu->decimalMode = true;
   return 0;
 }
 
-BYTE SEI(Cpu *cpu) {
+BYTE SEI(Mos6502 *cpu) {
   cpu->interruptDisable = true;
   return 0;
 }
 
-BYTE STA(Cpu *cpu) {
+BYTE STA(Mos6502 *cpu) {
   cpu->write(cpu->oprandAdrress, cpu->accumulator);
   return 0;
 }
 
-BYTE STX(Cpu *cpu) {
+BYTE STX(Mos6502 *cpu) {
   cpu->write(cpu->oprandAdrress, cpu->x);
   return 0;
 }
 
-BYTE STY(Cpu *cpu) {
+BYTE STY(Mos6502 *cpu) {
   cpu->write(cpu->oprandAdrress, cpu->y);
   return 0;
 }
 
-BYTE TAX(Cpu *cpu) {
+BYTE TAX(Mos6502 *cpu) {
   cpu->x = cpu->accumulator;
   setNegativeAndZeroFlag(cpu, cpu->x);
   return 0;
 }
 
-BYTE TAY(Cpu *cpu) {
+BYTE TAY(Mos6502 *cpu) {
   cpu->y = cpu->accumulator;
   setNegativeAndZeroFlag(cpu, cpu->y);
   return 0;
 }
 
-BYTE TSX(Cpu *cpu) {
+BYTE TSX(Mos6502 *cpu) {
   cpu->x = cpu->stackPtr;
   setNegativeAndZeroFlag(cpu, cpu->x);
   return 0;
 }
 
-BYTE TXA(Cpu *cpu) {
+BYTE TXA(Mos6502 *cpu) {
   cpu->x = cpu->accumulator;
   setNegativeAndZeroFlag(cpu, cpu->x);
   return 0;
 }
 
-BYTE TXS(Cpu *cpu) {
+BYTE TXS(Mos6502 *cpu) {
   cpu->stackPtr = cpu->x;
   setNegativeAndZeroFlag(cpu, cpu->stackPtr);
   return 0;
 }
 
-BYTE TYA(Cpu *cpu) {
+BYTE TYA(Mos6502 *cpu) {
   cpu->y = cpu->accumulator;
   setNegativeAndZeroFlag(cpu, cpu->y);
   return 0;
 }
 
-BYTE PHA(Cpu *cpu) {
+BYTE PHA(Mos6502 *cpu) {
   cpu->write((STACK_PAGE | cpu->stackPtr), cpu->accumulator);
   cpu->stackPtr -= 1;
   return 0;
 }
 
-BYTE XXX(Cpu *cpu) { return 0; }
+BYTE XXX(Mos6502 *cpu) { return 0; }
 
 // clang-format off
 static const Instruction INSTRUCTIONS_LOOKUP_TABLE[] = {
