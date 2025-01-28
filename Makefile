@@ -1,10 +1,9 @@
 all: run
 
-cpu:
-	$(MAKE) -C cpu/
-build: cpu
-	clang -g -I cpu -L cpu main.c -l6502 -o nes
+SOURCE = main.c bus.c cpu.c
+
+build:
+	clang -g -I third-party $(SOURCE) -L third-party -lm -lraylib -o nes 
+
 run: build
 	./nes
-
-.PHONY: cpu main

@@ -1,5 +1,1 @@
-#include <stdint.h>
-
-typedef struct {
-} NesBus;
-
+#include "bus.h"

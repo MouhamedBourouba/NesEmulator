@@ -1,12 +1,12 @@
 [
   {
-    "directory": "/home/mouhamed/dev/nes/cpu",
+    "directory": "/home/mouhamed/Development/projects/NesEmulator/cpu",
     "file": "cpu.c",
-    "command": "clang -x c -c cpu.c -o cpu.o"
+    "command": "clang -g -c cpu.c -o cpu.o"
   },
   {
-    "directory": "/home/mouhamed/dev/nes",
+    "directory": "/home/mouhamed/Development/projects/NesEmulator",
     "file": "main.c",
-    "command": "clang -x c -I cpu -L cpu main.c -l6502 -o nes"
+    "command": "clang -g -I third-party -I cpu main.c -L cpu -L third-party -l6502 -lraylib -o nes"
   }
 ]

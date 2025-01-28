@@ -50,7 +50,7 @@ static BYTE fetchAndIcrementPC(Mos6502 *cpu) {
 }
 
 Mos6502 *Mos6502_create(read_func_t read, write_func_t write) {
-  Mos6502 *cpu = malloc(sizeof(Cpu));
+  Mos6502 *cpu = malloc(sizeof(Mos6502));
   cpu->read = read;
   cpu->write = write;
   Mos6502_reset(cpu);
