@@ -4,6 +4,8 @@ import "core:c"
 import "core:fmt"
 import "cpu"
 
+ram: [1024 * 2]u8
+
 RAM_BEGIN: u16 : 0x0000
 RAM_END: u16 : 0x1FFF
 PPU_BEGIN: u16 : 0x2000
@@ -12,8 +14,6 @@ IO_BEGIN: u16 : 0x4000
 IO_END: u16 : 0x401F
 ROM_BEGIN: u16 : 0x4020
 ROM_END: u16 : 0xFFFF
-
-bus: [1024 * 64]c.uint8_t
 
 MemoryRegion :: enum {
 	RAM,
@@ -45,12 +45,26 @@ get_region :: proc(addr: u16) -> MemoryRegion {
 
 @(export)
 write6502 :: proc(address: c.uint16_t, value: c.uint8_t) {
-	bus[address] = value
+	switch get_region(u16(address)) {
+	case .RAM:
+		ram[address & 0x07FF] = value
+	case .PPU:
+	case .IO:
+	case .ROM:
+	case .INVALID:
+	}
 }
-
 @(export)
 read6502 :: proc(address: c.uint16_t) -> c.uint8_t {
-	return bus[address]
+	switch get_region(u16(address)) {
+	case .RAM:
+		return ram[address & 0x07FF]
+	case .PPU:
+	case .IO:
+	case .ROM:
+	case .INVALID:
+	}
+	return 0
 }
 
 main :: proc() {
