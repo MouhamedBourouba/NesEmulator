@@ -2,9 +2,9 @@ package cpu
 
 import "core:c"
 
-when ODIN_OS == .Linux do foreign import foo "../fake6502.a"
+when ODIN_OS == .Linux do foreign import c6502 "../fake6502.a"
 
-foreign foo {
+foreign c6502 {
 	reset6502 :: proc() ---
 	exec6502 :: proc(tickcount: c.uint32_t) ---
 	step6502 :: proc() ---
