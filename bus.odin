@@ -1,27 +1,24 @@
 package main
 
 import "core:c"
-import "core:fmt"
-import "cpu"
 
-current_cart: Cartridge
-is_initialized: bool
+RAM_BEGIN: u16 : 0x0000
+RAM_END: u16 : 0x1FFF
 
-nes_init :: proc(cart: Cartridge) {
-	current_cart = cart
-	cpu.reset6502()
-	is_initialized = true
-}
+PPU_BEGIN: u16 : 0x2000
+PPU_END: u16 : 0x3FFF
 
-nes_tick :: proc() {
-	assert(is_initialized)
-	cpu.step6502()
-	fmt.printf("PC: $%04X\n", cpu.pc)
-}
+IO_BEGIN: u16 : 0x4000
+IO_END: u16 : 0x401F
 
-nes_destroy :: proc() {
-	delete_cartridge(current_cart)
-}
+EXPANTION_ROM_BEGIN: u16 : 0x4020
+EXPANTION_ROM_END: u16 : 0x5FFF
+
+SRAM_BEGIN: u16 : 0x6000
+SRAM_END: u16 : 0x7FFF
+
+ROM_BEGIN: u16 : 0x8000
+ROM_END: u16 : 0xFFFF
 
 MemoryRegion :: enum {
 	RAM,
@@ -87,11 +84,4 @@ read6502 :: proc(address: c.uint16_t) -> c.uint8_t {
 	case .INVALID:
 	}
 	return 0
-}
-
-ppu_register_read :: proc(address: u16) -> u8 {
-	return 0
-}
-
-ppu_register_write :: proc(address: u16, value: u8) {
 }

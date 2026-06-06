@@ -6,7 +6,7 @@ import "core:slice"
 import "mappers"
 
 Cartridge :: struct {
-	mapper: Mapper,
+	mapper: mappers.Mapper,
 	ines:   INes,
 }
 
@@ -14,7 +14,7 @@ new_cartridge_from_path :: proc(file_path: string) -> (cart: Cartridge, ok: bool
 	ines := new_ines_from_file(file_path) or_return
 	ines_print_header(ines)
 
-	mapper: Mapper
+	mapper: mappers.Mapper
 
 	switch ines.mapper_id {
 	case 0:
@@ -165,11 +165,7 @@ delete_ines :: proc(ines: INes) {
 	delete(ines.chr_rom)
 }
 
-Mapper :: union {
-	mappers.Mapper000,
-}
-
-mapper_cpu_read :: proc(mapper: Mapper, address: u16) -> u8 {
+mapper_cpu_read :: proc(mapper: mappers.Mapper, address: u16) -> u8 {
 	assert(address > 0x8000)
 
 	switch m in mapper {
@@ -180,7 +176,7 @@ mapper_cpu_read :: proc(mapper: Mapper, address: u16) -> u8 {
 	}
 }
 
-mapper_cpu_write :: proc(mapper: Mapper, address: u16, value: u8) {
+mapper_cpu_write :: proc(mapper: mappers.Mapper, address: u16, value: u8) {
 	assert(address > 0x8000)
 
 	switch m in mapper {
@@ -191,7 +187,7 @@ mapper_cpu_write :: proc(mapper: Mapper, address: u16, value: u8) {
 	}
 }
 
-mapper_ppu_read :: proc(mapper: Mapper, address: u16) -> u8 {
+mapper_ppu_read :: proc(mapper: mappers.Mapper, address: u16) -> u8 {
 	switch m in mapper {
 	case mappers.Mapper000:
 		return mappers.mapper000_ppu_read(m, address)
@@ -200,7 +196,7 @@ mapper_ppu_read :: proc(mapper: Mapper, address: u16) -> u8 {
 	}
 }
 
-mapper_ppu_write :: proc(mapper: Mapper, address: u16, value: u8) {
+mapper_ppu_write :: proc(mapper: mappers.Mapper, address: u16, value: u8) {
 	switch m in mapper {
 	case mappers.Mapper000:
 		mappers.mapper000_ppu_write(m, address, value)

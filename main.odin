@@ -22,6 +22,8 @@ draw_text_centered_xy :: proc(text: cstring, font_size: i32, color: rl.Color) {
 	rl.DrawText(text, x, y, font_size, color)
 }
 
+current_tile := 0
+
 main :: proc() {
 	rl.InitWindow(800, 600, "Nes emulator")
 	rl.SetTargetFPS(30)
@@ -49,23 +51,23 @@ main :: proc() {
 				32,
 				rl.RAYWHITE,
 			)
+		}
 
-			if rl.IsFileDropped() {
-				file_paths := rl.LoadDroppedFiles()
-				defer rl.UnloadDroppedFiles(file_paths)
+		if rl.IsFileDropped() {
+			file_paths := rl.LoadDroppedFiles()
+			defer rl.UnloadDroppedFiles(file_paths)
 
-				cartrid, ok := new_cartridge_from_path(string(file_paths.paths[0]))
-				invalid_nes_file_dropped = !ok
+			cartrid, ok := new_cartridge_from_path(string(file_paths.paths[0]))
+			invalid_nes_file_dropped = !ok
 
-				if ok {
-					nes_init(cartrid)
-				}
+			if ok {
+				nes_init(cartrid)
 			}
-			continue
 		}
 
 		if rl.IsKeyPressed(rl.KeyboardKey.SPACE) {
 			nes_tick()
+			current_tile += 1
 		}
 
 		draw_chr_rom()
@@ -73,25 +75,51 @@ main :: proc() {
 }
 
 draw_chr_rom :: proc() {
+	chr_rom := current_cart.ines.chr_rom
+
 	debug_palette := [4]rl.Color {
 		{0, 0, 0, 255},
 		{85, 85, 85, 255},
 		{170, 170, 170, 255},
 		{255, 255, 255, 255},
 	}
-	number_of_tiles := len(current_cart.ines.chr_rom) / 16
-	for i in 0 ..< number_of_tiles {
-		offset := i * 16
-		for row in 0 ..< 8 {
-			lo := current_cart.ines.chr_rom[offset + row]
-			hi := current_cart.ines.chr_rom[offset + row + 8]
-			for col in 0 ..< 8 {
-				bit := u8(7 - col)
-				pixel := ((hi >> bit) & 1) << 1 | ((lo >> bit) & 1)
 
-				screen_x := i32(i % 16) * 8 + i32(col)
-				screen_y := i32(i / 16) * 8 + i32(row)
-				rl.DrawPixel(screen_x, screen_y, debug_palette[pixel])
+	num_of_tiles := len(chr_rom) / 16
+
+	tiles := make([][8][8]u8, num_of_tiles)
+	defer delete(tiles)
+
+	for current_tile in 0 ..< num_of_tiles {
+		tile_data := chr_rom[current_tile * 16:current_tile * 16 + 16]
+
+		lo_row := tile_data[:8]
+		hi_ro := tile_data[8:]
+
+		for row in 0 ..< u8(8) {
+			for col in 0 ..< u8(8) {
+				lo_bit := (lo_row[row] >> (7 - col)) & 1
+				hi_bit := (hi_ro[row] >> (7 - col)) & 1
+				col_index := lo_bit + (2 * hi_bit)
+				tiles[current_tile][row][col] = col_index
+			}
+		}
+	}
+
+	scale := i32(2)
+
+	for tile, i in tiles {
+		offset_x := i32(i) % 16 * 8 * scale
+		offset_y := i32(i) / 16 * 8 * scale
+
+		for row, y in tile {
+			for col, x in row {
+				rl.DrawRectangle(
+					i32(x) * scale + offset_x,
+					i32(y) * scale + offset_y,
+					scale,
+					scale,
+					debug_palette[col],
+				)
 			}
 		}
 	}
