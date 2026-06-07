@@ -2,6 +2,7 @@ package main
 
 import "core:fmt"
 import "core:os"
+import "cpu"
 import rl "vendor:raylib"
 
 draw_text_centered_y :: proc(text: cstring, x: i32, font_size: i32, color: rl.Color) {
@@ -62,7 +63,15 @@ main :: proc() {
 			continue
 		}
 
-		nes_tick()
+		if rl.IsKeyPressed(rl.KeyboardKey.P) {
+			fmt.println("============")
+			fmt.printf("[LOG]: PC => $0x%X\n", cpu.pc)
+			fmt.printf("[LOG]: instructions => %d\n", cpu.instructions)
+			fmt.printf("[LOG]: cycles => %d\n", cpu.clockticks6502)
+		}
+
+		nes_frame()
+
 		draw_chr_rom()
 	}
 }

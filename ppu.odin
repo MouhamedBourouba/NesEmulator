@@ -1,5 +1,7 @@
 package main
 
+import "cpu"
+
 PPU_Status :: bit_field u8 {
 	unused:          u8   | 5,
 	sprite_overflow: bool | 1,
@@ -11,10 +13,8 @@ ppu_status: PPU_Status
 ppu_register_read :: proc(address: u16) -> u8 {
 	switch address {
 	case 0x2002:
-		ppu_status.vblank = true // to see something for now
 		old := ppu_status
 		ppu_status.vblank = false
-
 		return transmute(u8)old
 	}
 	return 0
@@ -88,5 +88,16 @@ dot: uint
 
 ppu_tick :: proc() {
 	dot += 1
-	scan_line += 1
+
+	if dot == 341 {
+		scan_line += 1
+		dot = 0
+	}
+
+	if scan_line == 241 {
+		ppu_status.vblank = true
+		cpu.nmi6502()
+	}
+	if scan_line == 261 do ppu_status.vblank = false
+	if scan_line == 262 do scan_line = 0
 }
