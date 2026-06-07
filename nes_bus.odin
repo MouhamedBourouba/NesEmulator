@@ -27,14 +27,13 @@ MemoryRegion :: enum {
 	EXPANTION_ROM,
 	SRAM,
 	ROM,
-	INVALID,
 }
 
 in_range :: proc(addr, lo, hi: u16) -> bool {
 	return addr >= lo && addr <= hi
 }
 
-get_region :: proc(addr: u16) -> MemoryRegion {
+get_cpu_region :: proc(addr: u16) -> MemoryRegion {
 	switch {
 	case in_range(addr, RAM_BEGIN, RAM_END):
 		return .RAM
@@ -49,13 +48,13 @@ get_region :: proc(addr: u16) -> MemoryRegion {
 	case in_range(addr, EXPANTION_ROM_BEGIN, EXPANTION_ROM_END):
 		return .EXPANTION_ROM
 	case:
-		return .INVALID
+		unreachable()
 	}
 }
 
 @(export)
 write6502 :: proc(address: c.uint16_t, value: c.uint8_t) {
-	switch get_region(u16(address)) {
+	switch get_cpu_region(u16(address)) {
 	case .RAM:
 		ram_write(address, value)
 	case .PPU:
@@ -65,13 +64,12 @@ write6502 :: proc(address: c.uint16_t, value: c.uint8_t) {
 		cartridge_cpu_write(current_cart, address, value)
 	case .SRAM:
 	case .EXPANTION_ROM:
-	case .INVALID:
 	}
 }
 
 @(export)
 read6502 :: proc(address: c.uint16_t) -> c.uint8_t {
-	switch get_region(u16(address)) {
+	switch get_cpu_region(u16(address)) {
 	case .RAM:
 		return ram_read(address)
 	case .PPU:
@@ -81,7 +79,6 @@ read6502 :: proc(address: c.uint16_t) -> c.uint8_t {
 		return cartridge_cpu_read(current_cart, address)
 	case .EXPANTION_ROM:
 	case .SRAM:
-	case .INVALID:
 	}
 	return 0
 }

@@ -35,19 +35,19 @@ new_cartridge_from_path :: proc(file_path: string) -> (cart: Cartridge, ok: bool
 }
 
 cartridge_cpu_read :: proc(cartridge: Cartridge, address: u16) -> u8 {
-	return mapper_cpu_read(cartridge.mapper, address)
+	return mappers.mapper_cpu_read(cartridge.mapper, address)
 }
 
 cartridge_cpu_write :: proc(cartridge: Cartridge, address: u16, value: u8) {
-	mapper_cpu_write(cartridge.mapper, address, value)
+	mappers.mapper_cpu_write(cartridge.mapper, address, value)
 }
 
 cartridge_ppu_read :: proc(cartridge: Cartridge, address: u16) -> u8 {
-	return mapper_ppu_read(cartridge.mapper, address)
+	return mappers.mapper_ppu_read(cartridge.mapper, address)
 }
 
 cartridge_ppu_write :: proc(cartridge: Cartridge, address: u16, value: u8) {
-	mapper_ppu_write(cartridge.mapper, address, value)
+	mappers.mapper_ppu_write(cartridge.mapper, address, value)
 }
 
 delete_cartridge :: proc(cart: Cartridge) {
@@ -163,44 +163,4 @@ new_ines_from_file :: proc(file_path: string) -> (ines: INes, ok: bool) {
 delete_ines :: proc(ines: INes) {
 	delete(ines.prg_rom)
 	delete(ines.chr_rom)
-}
-
-mapper_cpu_read :: proc(mapper: mappers.Mapper, address: u16) -> u8 {
-	assert(address > 0x8000)
-
-	switch m in mapper {
-	case mappers.Mapper000:
-		return mappers.mapper000_cpu_read(m, address)
-	case:
-		unreachable()
-	}
-}
-
-mapper_cpu_write :: proc(mapper: mappers.Mapper, address: u16, value: u8) {
-	assert(address > 0x8000)
-
-	switch m in mapper {
-	case mappers.Mapper000:
-		mappers.mapper000_cpu_write(m, address, value)
-	case:
-		unreachable()
-	}
-}
-
-mapper_ppu_read :: proc(mapper: mappers.Mapper, address: u16) -> u8 {
-	switch m in mapper {
-	case mappers.Mapper000:
-		return mappers.mapper000_ppu_read(m, address)
-	case:
-		unreachable()
-	}
-}
-
-mapper_ppu_write :: proc(mapper: mappers.Mapper, address: u16, value: u8) {
-	switch m in mapper {
-	case mappers.Mapper000:
-		mappers.mapper000_ppu_write(m, address, value)
-	case:
-		unreachable()
-	}
 }

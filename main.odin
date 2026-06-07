@@ -22,8 +22,6 @@ draw_text_centered_xy :: proc(text: cstring, font_size: i32, color: rl.Color) {
 	rl.DrawText(text, x, y, font_size, color)
 }
 
-current_tile := 0
-
 main :: proc() {
 	rl.InitWindow(800, 600, "Nes emulator")
 	rl.SetTargetFPS(30)
@@ -32,11 +30,11 @@ main :: proc() {
 
 	if len(os.args) > 1 {
 		rom_path := os.args[1]
-		if cart, ok := new_cartridge_from_path(rom_path); !ok {
-			fmt.println("invalid rom path provided")
-		} else {
-			nes_init(cart)
-		}
+		nes_init(rom_path)
+	}
+
+	defer if is_initialized {
+		nes_destroy()
 	}
 
 	for !rl.WindowShouldClose() {
@@ -45,31 +43,26 @@ main :: proc() {
 
 		rl.ClearBackground(rl.BLACK)
 
+		if rl.IsFileDropped() {
+			file_paths := rl.LoadDroppedFiles()
+			defer rl.UnloadDroppedFiles(file_paths)
+
+			ok := nes_init(string(file_paths.paths[0]))
+
+			invalid_nes_file_dropped = !ok
+			if !ok do fmt.println("unvalid rom dropped")
+		}
+
 		if !is_initialized {
 			draw_text_centered_xy(
 				invalid_nes_file_dropped ? "Invalid .nes file dropped please try again." : "Drop .nes file to load.",
 				32,
 				rl.RAYWHITE,
 			)
+			continue
 		}
 
-		if rl.IsFileDropped() {
-			file_paths := rl.LoadDroppedFiles()
-			defer rl.UnloadDroppedFiles(file_paths)
-
-			cartrid, ok := new_cartridge_from_path(string(file_paths.paths[0]))
-			invalid_nes_file_dropped = !ok
-
-			if ok {
-				nes_init(cartrid)
-			}
-		}
-
-		if rl.IsKeyPressed(rl.KeyboardKey.SPACE) {
-			nes_tick()
-			current_tile += 1
-		}
-
+		nes_tick()
 		draw_chr_rom()
 	}
 }

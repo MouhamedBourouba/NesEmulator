@@ -7,3 +7,6 @@ fake6502.a: ./cpu/fake6502.c
 	rm ./fake6502.o
 
 PHONY: run
+
+# run: fake6502.a
+# 	odin build . -debug -error-pos-style:unix 
