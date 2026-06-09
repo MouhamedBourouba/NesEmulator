@@ -50,7 +50,7 @@ cartridge_ppu_write :: proc(cartridge: Cartridge, address: u16, value: u8) {
 	mappers.mapper_ppu_write(cartridge.mapper, address, value)
 }
 
-delete_cartridge :: proc(cart: Cartridge) {
+cartridge_destory :: proc(cart: Cartridge) {
 	delete_ines(cart.ines)
 }
 
