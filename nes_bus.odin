@@ -1,5 +1,6 @@
 package main
 
+import "base:runtime"
 import "core:c"
 
 RAM_BEGIN: u16 : 0x0000
@@ -53,7 +54,8 @@ get_cpu_region :: proc(addr: u16) -> MemoryRegion {
 }
 
 @(export)
-write6502 :: proc(address: c.uint16_t, value: c.uint8_t) {
+write6502 :: proc "c" (address: c.uint16_t, value: c.uint8_t) {
+	context = runtime.default_context()
 	switch get_cpu_region(u16(address)) {
 	case .RAM:
 		ram_write(address, value)
@@ -68,7 +70,8 @@ write6502 :: proc(address: c.uint16_t, value: c.uint8_t) {
 }
 
 @(export)
-read6502 :: proc(address: c.uint16_t) -> c.uint8_t {
+read6502 :: proc "c" (address: c.uint16_t) -> c.uint8_t {
+	context = runtime.default_context()
 	switch get_cpu_region(u16(address)) {
 	case .RAM:
 		return ram_read(address)
