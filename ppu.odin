@@ -61,6 +61,8 @@ PPUMask :: bit_field u8 {
 ppu_ctrl: PPUCtrl
 ppu_status: PPUStatus
 ppu_mask: PPUMask
+scroll_x: u8
+scroll_y: u8
 vram_addr: u16
 write_latch: bool
 oam_addr: u8
@@ -118,7 +120,19 @@ ppu_register_write :: proc(address: u16, value: u8) {
 	switch get_ppu_register(address) {
 	case .PPUStatus:
 	case .PPUScroll:
+		if write_latch {
+			scroll_y = value
+			write_latch = false
+		} else {
+			scroll_x = value
+			write_latch = true
+		}
 	case .OAMDMA:
+		cpu_page := u16(value) * 0x100
+		for i := u16(0); i < 256; i += 1 {
+			oam[i] = read6502(i + cpu_page)
+		}
+		stall_cpu(513)
 	case .PPUCtrl:
 		old_vblank := ppu_ctrl.vblank_nmi
 		ppu_ctrl = transmute(PPUCtrl)value
