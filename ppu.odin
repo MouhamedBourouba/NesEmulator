@@ -6,16 +6,13 @@ import "cpu"
 CHR_ROM_BEGIN: u16 : 0x0000
 CHR_ROM_END: u16 : 0x1FFF
 NAMETABLE_BEGIN: u16 : 0x2000
-NAMETABLE_END: u16 : 0x2FFF
-NAMETABLE_MIRROR_BEGIN: u16 : 0x3000
-NAMETABLE_MIRROR_END: u16 : 0x3EFF
+NAMETABLE_END: u16 : 0x3EFF
 PALETTE_BEGIN: u16 : 0x3F00
 PALETTE_END: u16 : 0x3FFF
 
 PPUMemoryRegion :: enum {
 	CHR_ROM,
 	NAMETABLE,
-	NAMETABLE_MIRROR,
 	PALETTE,
 	INVALID,
 }
@@ -27,7 +24,7 @@ PPUStatus :: bit_field u8 {
 	vblank:          bool | 1,
 }
 
-PPUCTRL :: bit_field u8 {
+PPUCtrl :: bit_field u8 {
 	nametable_address:        u8   | 2,
 	vram_increment:           bool | 1,
 	sprite_pattern_table:     bool | 1,
@@ -37,8 +34,20 @@ PPUCTRL :: bit_field u8 {
 	vblank_nmi:               bool | 1,
 }
 
-ppu_ctrl: PPUCTRL
+PPUMask :: bit_field u8 {
+	grayscale:            bool | 1,
+	render_left_bg:       bool | 1,
+	render_left_sprites:  bool | 1,
+	background_rendering: bool | 1,
+	sprite_rendering:     bool | 1,
+	emphasize_green:      bool | 1,
+	emphasize_red:        bool | 1,
+	emphasize_blue:       bool | 1,
+}
+
+ppu_ctrl: PPUCtrl
 ppu_status: PPUStatus
+ppu_mask: PPUMask
 vram_addr: u16
 write_latch: bool
 data_buf: u8
@@ -46,6 +55,8 @@ vram: [1024 * 2]u8
 palette_ram: [32]u8
 scan_line: uint
 dot: uint
+
+frame_buffer: [256 * 240]u32
 
 ppu_init :: proc() {
 	fmt.printfln("[LOG]: PPU initialized")
@@ -68,10 +79,12 @@ ppu_register_read :: proc(address: u16) -> u8 {
 	case 0x2007:
 		old_buf := data_buf
 		data_buf = ppu_mem_read(vram_addr)
-		if get_ppu_region(vram_addr) == .PALETTE {
+		region := get_ppu_region(vram_addr)
+		increment_vram_address()
+
+		if region == .PALETTE {
 			return data_buf
 		}
-		increment_vram_address()
 		return old_buf
 	}
 	return 0
@@ -81,9 +94,10 @@ ppu_register_write :: proc(address: u16, value: u8) {
 	switch address {
 	case 0x2000:
 		old_vblank := ppu_ctrl.vblank_nmi
-		ppu_ctrl = transmute(PPUCTRL)value
+		ppu_ctrl = transmute(PPUCtrl)value
 		if ppu_ctrl.vblank_nmi && !old_vblank && ppu_status.vblank do cpu.nmi6502()
-
+		ppu_mask = transmute(PPUMask)value
+	case 0x2001:
 	case 0x2006:
 		if write_latch {
 			vram_addr = (vram_addr & 0xFF00) | u16(value)
@@ -104,8 +118,6 @@ get_ppu_region :: proc(addr: u16) -> PPUMemoryRegion {
 		return .CHR_ROM
 	case in_range(addr, NAMETABLE_BEGIN, NAMETABLE_END):
 		return .NAMETABLE
-	case in_range(addr, NAMETABLE_MIRROR_BEGIN, NAMETABLE_MIRROR_END):
-		return .NAMETABLE_MIRROR
 	case in_range(addr, PALETTE_BEGIN, PALETTE_END):
 		return .PALETTE
 	case:
@@ -113,13 +125,28 @@ get_ppu_region :: proc(addr: u16) -> PPUMemoryRegion {
 	}
 }
 
+get_nametable_address :: proc(address: u16) -> u16 {
+	nametable_bank := (address - 0x2000) / 0x400
+	nametable_pos := (address - 0x2000) & 0x3FF
+
+	offset: u16
+	switch current_cart.ines.mirror_mode {
+	case .Vertical:
+		if nametable_bank == 0 || nametable_bank == 2 do offset = 0
+		else if nametable_bank == 1 || nametable_bank == 3 do offset = 1024
+	case .Horizontal:
+		if nametable_bank == 0 || nametable_bank == 1 do offset = 0
+		else if nametable_bank == 2 || nametable_bank == 3 do offset = 1024
+	}
+	return offset + nametable_pos
+}
+
 ppu_mem_read :: proc(address: u16) -> u8 {
-	fmt.printf("READ at $0x%X\n", address)
 	switch get_ppu_region(address) {
 	case .CHR_ROM:
 		return cartridge_ppu_read(current_cart, address)
 	case .NAMETABLE:
-	case .NAMETABLE_MIRROR:
+		return vram[get_nametable_address(address)]
 	case .PALETTE:
 		return palette_ram[address - PALETTE_BEGIN]
 	case .INVALID:
@@ -129,12 +156,11 @@ ppu_mem_read :: proc(address: u16) -> u8 {
 }
 
 ppu_mem_write :: proc(address: u16, value: u8) {
-	fmt.printf("WRITE at $0x%X = $0x%X\n", address, value)
 	switch get_ppu_region(address) {
 	case .CHR_ROM:
 		cartridge_ppu_write(current_cart, address, value)
 	case .NAMETABLE:
-	case .NAMETABLE_MIRROR:
+		vram[get_nametable_address(address)] = value
 	case .PALETTE:
 		palette_ram[address - PALETTE_BEGIN] = value
 	case .INVALID:
@@ -151,8 +177,8 @@ ppu_tick :: proc() {
 
 	if scan_line == 241 && dot == 1 {
 		ppu_status.vblank = true
-		cpu.nmi6502()
+		if ppu_ctrl.vblank_nmi do cpu.nmi6502()
 	}
-	if scan_line == 261 do ppu_status.vblank = false
+	if scan_line == 261 && dot == 1 do ppu_status.vblank = false
 	if scan_line == 262 do scan_line = 0
 }

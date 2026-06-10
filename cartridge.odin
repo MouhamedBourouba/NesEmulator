@@ -56,19 +56,24 @@ cartridge_destory :: proc(cart: Cartridge) {
 
 NES_MAGIC :: [?]u8{0x4E, 0x45, 0x53, 0x1A}
 
+MirrorMode :: enum {
+	Vertical,
+	Horizontal,
+}
+
 INes :: struct {
-	prg_rom:               []byte,
-	chr_rom:               []byte,
-	prg_banks:             u8,
-	chr_banks:             u8,
-	mapper_id:             uint,
-	nametable_arrangement: uint,
-	has_battery:           bool,
-	has_trainer:           bool,
-	alt_nametable:         bool,
-	is_vs_unisystem:       bool,
-	is_playchoice:         bool,
-	is_nes2:               bool,
+	prg_rom:         []byte,
+	chr_rom:         []byte,
+	prg_banks:       u8,
+	chr_banks:       u8,
+	mapper_id:       uint,
+	mirror_mode:     MirrorMode,
+	has_battery:     bool,
+	has_trainer:     bool,
+	alt_nametable:   bool,
+	is_vs_unisystem: bool,
+	is_playchoice:   bool,
+	is_nes2:         bool,
 }
 
 ines_print_header :: proc(ines: INes) {
@@ -78,7 +83,7 @@ ines_print_header :: proc(ines: INes) {
 	fmt.println("PRG ROM banks:        ", ines.prg_banks)
 	fmt.println("CHR ROM size:         ", len(ines.chr_rom) / 1024, "KB")
 	fmt.println("CHR ROM banks:        ", ines.chr_banks)
-	fmt.println("Nametable arrangement:", ines.nametable_arrangement)
+	fmt.println("Nametable arrangement:", ines.mirror_mode)
 	fmt.println("Has battery:          ", ines.has_battery)
 	fmt.println("Has trainer:          ", ines.has_trainer)
 	fmt.println("Alt nametable:        ", ines.alt_nametable)
@@ -112,7 +117,8 @@ new_ines_from_file :: proc(file_path: string) -> (ines: INes, ok: bool) {
 	flags6 := data[offset]; offset += 1
 	flags7 := data[offset]; offset += 1
 
-	nametable_arrangement := (flags6 & 0x01) != 0 // 0=vertical  1=horizontal
+	mirror_mode := ((flags6 & 0x01) != 0) ? MirrorMode.Horizontal : MirrorMode.Vertical // 0=vertical  1=horizontal
+
 	has_battery := (flags6 & 0x02) != 0
 	has_trainer := (flags6 & 0x04) != 0
 	alt_nametable := (flags6 & 0x08) != 0
@@ -155,7 +161,7 @@ new_ines_from_file :: proc(file_path: string) -> (ines: INes, ok: bool) {
 			has_trainer = has_trainer,
 			is_playchoice = is_playchoice,
 			is_vs_unisystem = is_vs_unisystem,
-			nametable_arrangement = uint(nametable_arrangement),
+			mirror_mode = mirror_mode,
 		},
 		true
 }

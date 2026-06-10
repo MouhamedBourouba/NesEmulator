@@ -1,7 +1,6 @@
 package main
 
 import "core:c"
-import "core:fmt"
 
 RAM_BEGIN: u16 : 0x0000
 RAM_END: u16 : 0x1FFF
