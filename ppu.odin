@@ -58,6 +58,7 @@ PPUMask :: bit_field u8 {
 	emphasize_blue:       bool | 1,
 }
 
+// PPU state
 ppu_ctrl: PPUCtrl
 ppu_status: PPUStatus
 ppu_mask: PPUMask
@@ -68,7 +69,7 @@ write_latch: bool
 oam_addr: u8
 oam: [256]u8
 data_buf: u8
-vram: [1024 * 2]u8
+nametable: [1024 * 2]u8
 palette_ram: [32]u8
 scan_line: uint
 dot: uint
@@ -198,8 +199,8 @@ get_ppu_register :: proc(address: u16) -> PPURegisters {
 get_nametable_address :: proc(address: u16) -> u16 {
 	nametable_bank := (address - 0x2000) / 0x400
 	nametable_pos := (address - 0x2000) & 0x3FF
-
 	offset: u16
+
 	switch current_cart.ines.mirror_mode {
 	case .Vertical:
 		if nametable_bank == 0 || nametable_bank == 2 do offset = 0
@@ -211,14 +212,22 @@ get_nametable_address :: proc(address: u16) -> u16 {
 	return offset + nametable_pos
 }
 
+get_palette_address :: proc(address: u16) -> u16 {
+	addr := (address - PALETTE_BEGIN) & 0x1F
+	if addr == 0x10 || addr == 0x14 || addr == 0x18 || addr == 0x1C {
+		addr -= 0x10
+	}
+	return addr
+}
+
 ppu_mem_read :: proc(address: u16) -> u8 {
 	switch get_ppu_region(address) {
 	case .CHR_ROM:
 		return cartridge_ppu_read(current_cart, address)
 	case .NAMETABLE:
-		return vram[get_nametable_address(address)]
+		return nametable[get_nametable_address(address)]
 	case .PALETTE:
-		return palette_ram[address - PALETTE_BEGIN]
+		return palette_ram[get_palette_address(address)]
 	case .INVALID:
 		return 0
 	}
@@ -230,9 +239,9 @@ ppu_mem_write :: proc(address: u16, value: u8) {
 	case .CHR_ROM:
 		cartridge_ppu_write(current_cart, address, value)
 	case .NAMETABLE:
-		vram[get_nametable_address(address)] = value
+		nametable[get_nametable_address(address)] = value
 	case .PALETTE:
-		palette_ram[address - PALETTE_BEGIN] = value
+		palette_ram[get_palette_address(address)] = value
 	case .INVALID:
 	}
 }
@@ -244,11 +253,37 @@ ppu_tick :: proc() {
 		scan_line += 1
 		dot = 0
 	}
-
 	if scan_line == 241 && dot == 1 {
 		ppu_status.vblank = true
 		if ppu_ctrl.vblank_nmi do cpu.nmi6502()
 	}
 	if scan_line == 261 && dot == 1 do ppu_status.vblank = false
 	if scan_line == 262 do scan_line = 0
+
+	if dot < 240 && scan_line < 240 {
+		tile_x := dot / 8
+		tile_y := scan_line / 8
+
+		tile_id := nametable[tile_x + tile_y * 32]
+
+		background_offset := u16(ppu_ctrl.background_pattern_table ? 0x1000 : 0)
+
+		pattern_addr_lo := background_offset + u16(u16(tile_id) * 16) + u16(scan_line % 8)
+		pattern_addr_hi := pattern_addr_lo + 8
+
+		lo_row := current_cart.ines.chr_rom[pattern_addr_lo]
+		hi_row := current_cart.ines.chr_rom[pattern_addr_hi]
+
+		bit := 7 - (dot % 8)
+		pixel_lo := (lo_row >> bit) & 0x01
+		pixel_hi := (hi_row >> bit) & 0x01
+
+		color_idx := pixel_lo + pixel_hi * 2
+		paletter_num := 0
+
+		nes_color_idx := palette_ram[color_idx]
+		nes_color := NES_PALETTE[nes_color_idx]
+
+		frame_buffer[dot + scan_line * 256] = nes_color
+	}
 }

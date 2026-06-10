@@ -38,6 +38,16 @@ main :: proc() {
 		nes_destroy()
 	}
 
+	texture := rl.LoadTextureFromImage(
+		rl.Image {
+			data = rawptr(&frame_buffer),
+			format = rl.PixelFormat.UNCOMPRESSED_R8G8B8A8,
+			height = 240,
+			width = 256,
+			mipmaps = 1,
+		},
+	)
+
 	for !rl.WindowShouldClose() {
 		rl.BeginDrawing()
 		defer rl.EndDrawing()
@@ -73,7 +83,9 @@ main :: proc() {
 		}
 
 		nes_frame()
-		draw_chr_rom()
+		rl.UpdateTexture(texture, rawptr(&frame_buffer))
+
+		rl.DrawTexture(texture, 0, 0, rl.WHITE)
 
 		rl.DrawFPS(0, 0)
 	}
