@@ -38,7 +38,8 @@ PPUStatus :: bit_field u8 {
 }
 
 PPUCtrl :: bit_field u8 {
-	nametable_address:        u8   | 2,
+	nametable_x:              u8   | 1,
+	nametable_y:              u8   | 1,
 	vram_increment:           bool | 1,
 	sprite_pattern_table:     bool | 1,
 	background_pattern_table: bool | 1,
@@ -58,13 +59,26 @@ PPUMask :: bit_field u8 {
 	emphasize_blue:       bool | 1,
 }
 
+LoopyRegister :: struct #raw_union {
+	reg:  bit_field u16 {
+		coarse_x:    u16 | 5,
+		coarse_y:    u16 | 5,
+		nametable_x: u16 | 1,
+		nametable_y: u16 | 1,
+		fine_y:      u16 | 3,
+		unused:      u16 | 1,
+	},
+	addr: u16,
+}
+
+
 // PPU state
+vram_addr: LoopyRegister
+tram_addr: LoopyRegister
+fine_x: u8
 ppu_ctrl: PPUCtrl
 ppu_status: PPUStatus
 ppu_mask: PPUMask
-scroll_x: u8
-scroll_y: u8
-vram_addr: u16
 write_latch: bool
 oam_addr: u8
 oam: [256]u8
@@ -84,7 +98,7 @@ ppu_destroy :: proc() {
 }
 
 increment_vram_address :: proc() {
-	vram_addr += ppu_ctrl.vram_increment ? 32 : 1
+	vram_addr.addr += ppu_ctrl.vram_increment ? 32 : 1
 }
 
 ppu_register_read :: proc(address: u16) -> u8 {
@@ -98,8 +112,8 @@ ppu_register_read :: proc(address: u16) -> u8 {
 		return oam[oam_addr]
 	case .PPUData:
 		old_buf := data_buf
-		data_buf = ppu_mem_read(vram_addr)
-		region := get_ppu_region(vram_addr)
+		data_buf = ppu_mem_read(vram_addr.addr)
+		region := get_ppu_region(vram_addr.addr)
 		increment_vram_address()
 
 		if region == .PALETTE {
@@ -122,10 +136,12 @@ ppu_register_write :: proc(address: u16, value: u8) {
 	case .PPUStatus:
 	case .PPUScroll:
 		if write_latch {
-			scroll_y = value
+			tram_addr.reg.coarse_y = u16(value >> 3)
+			tram_addr.reg.fine_y = u16(value & 0b111)
 			write_latch = false
 		} else {
-			scroll_x = value
+			tram_addr.reg.coarse_x = u16(value >> 3)
+			fine_x = value & 0b111
 			write_latch = true
 		}
 	case .OAMDMA:
@@ -137,6 +153,10 @@ ppu_register_write :: proc(address: u16, value: u8) {
 	case .PPUCtrl:
 		old_vblank := ppu_ctrl.vblank_nmi
 		ppu_ctrl = transmute(PPUCtrl)value
+
+		tram_addr.reg.nametable_x = u16(ppu_ctrl.nametable_x)
+		tram_addr.reg.nametable_y = u16(ppu_ctrl.nametable_y)
+
 		if ppu_ctrl.vblank_nmi && !old_vblank && ppu_status.vblank do cpu.nmi6502()
 	case .PPUMask:
 		ppu_mask = transmute(PPUMask)value
@@ -147,14 +167,15 @@ ppu_register_write :: proc(address: u16, value: u8) {
 		oam_addr += 1
 	case .PPUAddr:
 		if write_latch {
-			vram_addr = (vram_addr & 0xFF00) | u16(value)
+			tram_addr.addr = (tram_addr.addr & 0xFF00) | u16(value)
+			vram_addr = tram_addr
 			write_latch = false
 		} else {
-			vram_addr = u16(value) << 8
+			tram_addr.addr = (tram_addr.addr & 0x00FF) | (u16(value & 0x3F) << 8)
 			write_latch = true
 		}
 	case .PPUData:
-		ppu_mem_write(vram_addr, value)
+		ppu_mem_write(vram_addr.addr, value)
 		increment_vram_address()
 	case .Invalid:
 	}
@@ -260,9 +281,9 @@ ppu_tick :: proc() {
 	if scan_line == 261 && dot == 1 do ppu_status.vblank = false
 	if scan_line == 262 do scan_line = 0
 
-	if dot < 240 && scan_line < 240 {
+	if dot < 256 && scan_line < 240 {
 		tile_x := dot / 8
-		tile_y := scan_line / 8
+		tile_y := uint(scan_line / 8)
 
 		tile_id := nametable[tile_x + tile_y * 32]
 
@@ -279,9 +300,19 @@ ppu_tick :: proc() {
 		pixel_hi := (hi_row >> bit) & 0x01
 
 		color_idx := pixel_lo + pixel_hi * 2
-		paletter_num := 0
 
-		nes_color_idx := palette_ram[color_idx]
+		att_x := u16(tile_x / 4)
+		att_y := u16(tile_y / 4)
+		attr_addr := u16(0x23c0) + att_y * 8 + att_x
+
+		attr_byte := ppu_mem_read(attr_addr)
+
+		quadrant_x := (tile_x % 4) / 2
+		quadrant_y := (tile_y % 4) / 2
+		shift := uint((quadrant_y * 2 + quadrant_x) * 2)
+		palette_num := (attr_byte >> shift) & 0x3
+
+		nes_color_idx := palette_ram[palette_num * 4 + color_idx]
 		nes_color := NES_PALETTE[nes_color_idx]
 
 		frame_buffer[dot + scan_line * 256] = nes_color

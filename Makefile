@@ -1,5 +1,5 @@
 run: fake6502.a
-	odin run . -error-pos-style:unix -- ./resources/DonkeyKong.nes
+	odin run . -error-pos-style:unix -- ./resources/ice-man.nes
 
 fake6502.a: ./cpu/fake6502.c
 	gcc -c ./cpu/fake6502.c -o fake6502.o
