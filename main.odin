@@ -25,6 +25,7 @@ draw_text_centered_xy :: proc(text: cstring, font_size: i32, color: rl.Color) {
 
 main :: proc() {
 	rl.InitWindow(800, 600, "Nes emulator")
+
 	// rl.SetTargetFPS(60)
 	invalid_nes_file_dropped: bool
 
@@ -51,14 +52,16 @@ main :: proc() {
 		rl.BeginDrawing()
 		defer rl.EndDrawing()
 
-		rl.ClearBackground(rl.BLACK)
-
+		rl.ClearBackground(rl.RAYWHITE)
 
 		if rl.IsFileDropped() {
 			file_paths := rl.LoadDroppedFiles()
 			defer rl.UnloadDroppedFiles(file_paths)
 
-			fmt.println(file_paths.paths[0])
+			for i := u32(0); i < file_paths.count; i += 1 {
+				fmt.println(string(file_paths.paths[i]))
+			}
+
 			ok := nes_init(string(file_paths.paths[0]))
 
 			invalid_nes_file_dropped = !ok
@@ -84,7 +87,7 @@ main :: proc() {
 		nes_frame()
 
 		rl.UpdateTexture(texture, rawptr(&frame_buffer))
-		rl.DrawTextureEx(texture, {0, 0}, 0, 2, rl.WHITE)
+		rl.DrawTextureEx(texture, {0, 0}, 0, 2.2, rl.WHITE)
 
 		rl.DrawFPS(0, 0)
 	}

@@ -85,8 +85,16 @@ oam: [256]u8
 data_buf: u8
 nametable: [1024 * 2]u8
 palette_ram: [32]u8
-scan_line: uint
+scan_line: int
 dot: uint
+bg_shifter_pattern_lo: u16
+bg_shifter_pattern_hi: u16
+bg_shifter_attrib_lo: u16
+bg_shifter_attrib_hi: u16
+bg_next_tile_id: u8
+bg_next_tile_lo: u8
+bg_next_tile_hi: u8
+bg_next_tile_attrib: u8
 
 frame_buffer: [256 * 240]u32
 
@@ -268,53 +276,158 @@ ppu_mem_write :: proc(address: u16, value: u8) {
 }
 
 ppu_tick :: proc() {
-	dot += 1
+	update_shifters :: proc() {
+		bg_shifter_pattern_hi <<= 1
+		bg_shifter_pattern_lo <<= 1
 
-	if dot == 341 {
-		scan_line += 1
-		dot = 0
+		bg_shifter_attrib_hi <<= 1
+		bg_shifter_attrib_lo <<= 1
 	}
+
+	load_bg_shifters :: proc() {
+		bg_shifter_pattern_hi = (bg_shifter_pattern_hi & 0xFF00) | u16(bg_next_tile_hi)
+		bg_shifter_pattern_lo = (bg_shifter_pattern_lo & 0xFF00) | u16(bg_next_tile_lo)
+
+		bg_shifter_attrib_hi =
+			(bg_shifter_attrib_hi & 0xFF00) |
+			u16(((bg_next_tile_attrib & 0b10 != 0) ? 0xFF : 0x00))
+
+		bg_shifter_attrib_lo =
+			(bg_shifter_attrib_lo & 0xFF00) |
+			u16(((bg_next_tile_attrib & 0b01 != 0) ? 0xFF : 0x00))
+	}
+
+	increment_scroll_x :: proc() {
+		if !ppu_mask.background_rendering && !ppu_mask.sprite_rendering do return
+
+		// TODO: check after rendering
+		if vram_addr.reg.coarse_x == 31 {
+			vram_addr.reg.coarse_x = 0
+			vram_addr.reg.nametable_x = vram_addr.reg.nametable_x == 0 ? 1 : 0
+		} else {
+			vram_addr.reg.coarse_x += 1
+		}
+	}
+
+	increment_scroll_y :: proc() {
+		if !ppu_mask.background_rendering && !ppu_mask.sprite_rendering do return
+		if vram_addr.reg.fine_y < 7 {
+			vram_addr.reg.fine_y += 1
+			return
+		}
+		vram_addr.reg.fine_y = 0
+
+		if vram_addr.reg.coarse_y == 29 {
+			vram_addr.reg.coarse_y = 0
+			vram_addr.reg.nametable_y = ~vram_addr.reg.nametable_y
+			return
+		}
+
+		if vram_addr.reg.coarse_y == 31 {
+			vram_addr.reg.coarse_y = 0
+			return
+		}
+
+		vram_addr.reg.coarse_y += 1
+	}
+	transfer_address_x :: proc() {
+		if !ppu_mask.background_rendering && !ppu_mask.sprite_rendering do return
+
+		vram_addr.reg.nametable_x = tram_addr.reg.nametable_x
+		vram_addr.reg.coarse_x = tram_addr.reg.coarse_x
+	}
+	transfer_address_y :: proc() {
+		if !ppu_mask.background_rendering && !ppu_mask.sprite_rendering do return
+
+		vram_addr.reg.nametable_y = tram_addr.reg.nametable_y
+		vram_addr.reg.coarse_y = tram_addr.reg.coarse_y
+		vram_addr.reg.fine_y = tram_addr.reg.fine_y
+	}
+
+	if scan_line >= -1 && scan_line < 240 {
+		// "Odd Frame"
+		if scan_line == 0 && dot == 0 {
+			dot = 1
+		}
+
+		if scan_line == -1 && dot == 1 {
+			ppu_status.vblank = false
+		}
+
+		// skip dot 1 "idel cycle" and skip sprite rendering cycles
+		if (dot >= 2 && dot < 258) || (dot >= 321 && dot < 338) {
+			update_shifters()
+			switch (dot - 1) % 8 {
+			case 0:
+				load_bg_shifters()
+				bg_next_tile_id = ppu_mem_read(0x2000 | (vram_addr.addr & 0x0FFF))
+			case 2:
+				bg_next_tile_attrib = ppu_mem_read(
+					0x23C0 |
+					(vram_addr.reg.nametable_y << 11) |
+					(vram_addr.reg.nametable_x << 10) |
+					((vram_addr.reg.coarse_y >> 2) << 3) |
+					(vram_addr.reg.coarse_x >> 2),
+				)
+
+				if vram_addr.reg.coarse_y & 0x02 != 0 do bg_next_tile_attrib >>= 4
+				if vram_addr.reg.coarse_x & 0x02 != 0 do bg_next_tile_attrib >>= 2
+
+				bg_next_tile_attrib &= 0x03
+			case 4, 6:
+				bg_offset := uint(ppu_ctrl.background_pattern_table ? 0x1000 : 0x0000)
+				tile_base_addr_lo := u16(
+					bg_offset + uint(bg_next_tile_id) * 16 + uint(vram_addr.reg.fine_y),
+				)
+				tile_base_addr_hi := tile_base_addr_lo + 8
+				if (dot - 1) % 8 == 4 do bg_next_tile_lo = ppu_mem_read(tile_base_addr_lo)
+				if (dot - 1) % 8 == 6 do bg_next_tile_hi = ppu_mem_read(tile_base_addr_hi)
+			case 7:
+				increment_scroll_x()
+			}
+		}
+		if dot == 256 do increment_scroll_y()
+
+		if dot == 257 {
+			load_bg_shifters()
+			transfer_address_x()
+		}
+
+		if scan_line == -1 && dot >= 280 && dot < 305 {
+			transfer_address_y()
+		}
+	}
+
+	if dot >= 1 &&
+	   dot <= 256 &&
+	   scan_line >= 0 &&
+	   scan_line < 240 &&
+	   ppu_mask.background_rendering {
+		bit_mask := u16(0x8000 >> fine_x)
+
+		pcolor_hi := u8((bg_shifter_pattern_hi & bit_mask) > 0)
+		pcolor_lo := u8((bg_shifter_pattern_lo & bit_mask) > 0)
+
+		pattrib_hi := u8((bg_shifter_attrib_hi & bit_mask) > 0)
+		pattrib_lo := u8((bg_shifter_attrib_lo & bit_mask) > 0)
+
+		pcolor_index := pcolor_hi * 2 + pcolor_lo
+		ppalette_index := pattrib_hi * 2 + pattrib_lo
+
+		color_index := ppu_mem_read(0x3F00 + u16(ppalette_index * 4 + pcolor_index))
+
+		frame_buffer[dot - 1 + uint(scan_line) * 256] = NES_PALETTE[color_index]
+	}
+
 	if scan_line == 241 && dot == 1 {
 		ppu_status.vblank = true
 		if ppu_ctrl.vblank_nmi do cpu.nmi6502()
 	}
-	if scan_line == 261 && dot == 1 do ppu_status.vblank = false
-	if scan_line == 262 do scan_line = 0
 
-	if dot < 256 && scan_line < 240 {
-		tile_x := dot / 8
-		tile_y := uint(scan_line / 8)
-
-		tile_id := nametable[tile_x + tile_y * 32]
-
-		background_offset := u16(ppu_ctrl.background_pattern_table ? 0x1000 : 0)
-
-		pattern_addr_lo := background_offset + u16(u16(tile_id) * 16) + u16(scan_line % 8)
-		pattern_addr_hi := pattern_addr_lo + 8
-
-		lo_row := current_cart.ines.chr_rom[pattern_addr_lo]
-		hi_row := current_cart.ines.chr_rom[pattern_addr_hi]
-
-		bit := 7 - (dot % 8)
-		pixel_lo := (lo_row >> bit) & 0x01
-		pixel_hi := (hi_row >> bit) & 0x01
-
-		color_idx := pixel_lo + pixel_hi * 2
-
-		att_x := u16(tile_x / 4)
-		att_y := u16(tile_y / 4)
-		attr_addr := u16(0x23c0) + att_y * 8 + att_x
-
-		attr_byte := ppu_mem_read(attr_addr)
-
-		quadrant_x := (tile_x % 4) / 2
-		quadrant_y := (tile_y % 4) / 2
-		shift := uint((quadrant_y * 2 + quadrant_x) * 2)
-		palette_num := (attr_byte >> shift) & 0x3
-
-		nes_color_idx := palette_ram[palette_num * 4 + color_idx]
-		nes_color := NES_PALETTE[nes_color_idx]
-
-		frame_buffer[dot + scan_line * 256] = nes_color
+	dot += 1
+	if dot == 341 {
+		scan_line += 1
+		if scan_line == 261 do scan_line = -1
+		dot = 0
 	}
 }
