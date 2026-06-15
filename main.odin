@@ -25,8 +25,8 @@ draw_text_centered_xy :: proc(text: cstring, font_size: i32, color: rl.Color) {
 
 main :: proc() {
 	rl.InitWindow(800, 600, "Nes emulator")
+	rl.SetTargetFPS(60)
 
-	// rl.SetTargetFPS(60)
 	invalid_nes_file_dropped: bool
 
 	if len(os.args) > 1 {
@@ -82,7 +82,22 @@ main :: proc() {
 			fmt.printf("[LOG]: PC => $0x%X\n", cpu.pc)
 			fmt.printf("[LOG]: instructions => %d\n", cpu.instructions)
 			fmt.printf("[LOG]: cycles => %d\n", cpu.clockticks6502)
+
+			for v in next_sprites {
+				fmt.println("sprite y: ", v.y, " x: ", v.x, " tile_id: ", v.tile_id)
+			}
 		}
+
+		controller[0] = 0
+
+		controller[0] |= u8(rl.IsKeyDown(rl.KeyboardKey.Z)) << 1 // B
+		controller[0] |= u8(rl.IsKeyDown(rl.KeyboardKey.X)) << 0 // A
+		controller[0] |= u8(rl.IsKeyDown(rl.KeyboardKey.RIGHT_SHIFT)) << 2 // Select
+		controller[0] |= u8(rl.IsKeyDown(rl.KeyboardKey.ENTER)) << 3 // Start
+		controller[0] |= u8(rl.IsKeyDown(rl.KeyboardKey.UP)) << 4 // Up
+		controller[0] |= u8(rl.IsKeyDown(rl.KeyboardKey.DOWN)) << 5 // Down
+		controller[0] |= u8(rl.IsKeyDown(rl.KeyboardKey.LEFT)) << 6 // Left
+		controller[0] |= u8(rl.IsKeyDown(rl.KeyboardKey.RIGHT)) << 7 // Right
 
 		nes_frame()
 

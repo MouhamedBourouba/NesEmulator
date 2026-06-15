@@ -3,9 +3,7 @@ package main
 import "core:fmt"
 import "cpu"
 
-CPU_CLOCK_SPEED :: 1_789_773
-TARGET_FRAME_RATE :: 60
-CPU_CYCLES_PER_FRAME :: CPU_CLOCK_SPEED / TARGET_FRAME_RATE
+PPU_CYCLES_PER_FRAME :: 341 * 262
 
 cycles: uint
 current_cart: Cartridge
@@ -24,14 +22,18 @@ nes_init :: proc(rom_file_path: string) -> bool {
 	return true
 }
 
+
 nes_frame :: proc() {
 	assert(is_initialized)
-	for _ in 1 ..= CPU_CYCLES_PER_FRAME {
-		if cpu_stall_counter == 0 do cpu.exec6502(1)
-		else do cpu_stall_counter -= 1
+	for _ in 1 ..= PPU_CYCLES_PER_FRAME {
 		ppu_tick()
-		ppu_tick()
-		ppu_tick()
+
+		if cycles % 3 == 0 {
+			if cpu_stall_counter == 0 do cpu.exec6502(1)
+			else do cpu_stall_counter -= 1
+		}
+
+		cycles += 1
 	}
 }
 

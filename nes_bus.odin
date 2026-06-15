@@ -62,6 +62,7 @@ write6502 :: proc "c" (address: c.uint16_t, value: c.uint8_t) {
 	case .PPU:
 		ppu_register_write(address, value)
 	case .IO:
+		io_write(address, value)
 	case .ROM:
 		cartridge_cpu_write(current_cart, address, value)
 	case .SRAM:
@@ -78,6 +79,7 @@ read6502 :: proc "c" (address: c.uint16_t) -> c.uint8_t {
 	case .PPU:
 		return ppu_register_read(address)
 	case .IO:
+		return io_read(address)
 	case .ROM:
 		return cartridge_cpu_read(current_cart, address)
 	case .EXPANTION_ROM:
