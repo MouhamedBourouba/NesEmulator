@@ -25,7 +25,7 @@ draw_text_centered_xy :: proc(text: cstring, font_size: i32, color: rl.Color) {
 
 main :: proc() {
 	rl.InitWindow(800, 600, "Nes emulator")
-	rl.SetTargetFPS(60)
+	// rl.SetTargetFPS(60)
 
 	invalid_nes_file_dropped: bool
 

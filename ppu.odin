@@ -61,11 +61,11 @@ PPUMask :: bit_field u8 {
 }
 
 SpriteAttributes :: bit_field u8 {
-	palette:  u8 | 2,
-	unused:   u8 | 3,
-	priority: u8 | 1,
-	x_flip:   u8 | 1,
-	y_flip:   u8 | 1,
+	palette:      u8   | 2,
+	unused:       u8   | 3,
+	not_priority: bool | 1,
+	x_flip:       bool | 1,
+	y_flip:       bool | 1,
 }
 
 Sprite :: struct {
@@ -131,6 +131,9 @@ next_sprites_count: u8
 
 sprites_shifter_pattern_lo: [8]u8
 sprites_shifter_pattern_hi: [8]u8
+
+sprite_zero_hit_possible: bool
+sprite_zero_being_rendered: bool
 
 frame_buffer: [256 * 240]u32
 
@@ -369,7 +372,7 @@ ppu_tick :: proc() {
 
 		if vram_addr.reg.coarse_y == 29 {
 			vram_addr.reg.coarse_y = 0
-			vram_addr.reg.nametable_y = vram_addr.reg.nametable_y == 0 ? 1 : 0
+			vram_addr.reg.nametable_y = ~vram_addr.reg.nametable_y
 			return
 		}
 
@@ -391,9 +394,9 @@ ppu_tick :: proc() {
 	transfer_address_y :: #force_inline proc() {
 		if !ppu_mask.background_rendering && !ppu_mask.sprite_rendering do return
 
+		vram_addr.reg.fine_y = tram_addr.reg.fine_y
 		vram_addr.reg.nametable_y = tram_addr.reg.nametable_y
 		vram_addr.reg.coarse_y = tram_addr.reg.coarse_y
-		vram_addr.reg.fine_y = tram_addr.reg.fine_y
 	}
 
 	load_sprites :: #force_inline proc() {
@@ -403,7 +406,9 @@ ppu_tick :: proc() {
 		sprites_shifter_pattern_lo = {}
 		sprites_shifter_pattern_hi = {}
 
-		sprite_height := ppu_ctrl.sprite_size ? 16 : 8
+		sprite_hight := ppu_ctrl.sprite_size ? 16 : 8
+
+		sprite_zero_hit_possible = false
 
 		for i := 0; i < len(oam); i += 4 {
 			current_sprite := Sprite {
@@ -414,8 +419,12 @@ ppu_tick :: proc() {
 			}
 
 			if scan_line - int(current_sprite.y) >= 0 &&
-			   scan_line - int(current_sprite.y) < sprite_height &&
+			   scan_line - int(current_sprite.y) < sprite_hight &&
 			   next_sprites_count < 8 {
+
+				// sprite zero check
+				if i == 0 do sprite_zero_hit_possible = true
+
 				next_sprites[next_sprites_count] = current_sprite
 				next_sprites_count += 1
 			}
@@ -425,46 +434,57 @@ ppu_tick :: proc() {
 	load_sprite_shifters :: #force_inline proc() {
 		if !ppu_mask.background_rendering && !ppu_mask.sprite_rendering do return
 
+		sprite_hight := ppu_ctrl.sprite_size ? 16 : 8
+
 		for i := u8(0); i < next_sprites_count; i += 1 {
 			sprite := next_sprites[i]
-
-			sprite_height := ppu_ctrl.sprite_size ? 16 : 8
-			y_offset := scan_line - int(sprite.y)
-			if sprite.attributes.y_flip != 0 {
-				y_offset = sprite_height - 1 - y_offset
-			}
-
+			row := scan_line - int(sprite.y)
 			offset: u16
-			if ppu_ctrl.sprite_size {
-				table := u16(sprite.tile_id & 1) * 0x1000
-				tile := u16(sprite.tile_id & 0xFE)
-				if y_offset >= 8 {
-					tile += 1
-					y_offset -= 8
+
+
+			if sprite_hight == 8 {
+				offset = ppu_ctrl.sprite_pattern_table ? 0x1000 : 0x0000
+
+				if sprite.attributes.y_flip {
+					offset += u16(sprite.tile_id) * 16
+					offset += u16(7 - row)
+				} else {
+					offset += u16(sprite.tile_id) * 16
+					offset += u16(row)
 				}
-				offset = table + tile * 16 + u16(y_offset)
+
 			} else {
-				table := ppu_ctrl.sprite_pattern_table ? u16(0x1000) : u16(0x0000)
-				offset = table + u16(sprite.tile_id) * 16 + u16(y_offset)
-			}
+				offset = u16(sprite.tile_id & 1) * 0x1000
 
-			lo := current_cart.ines.chr_rom[offset]
-			hi := current_cart.ines.chr_rom[offset + 8]
-
-			if sprite.attributes.x_flip != 0 {
-				flip_byte :: proc(v: u8) -> u8 {
-					v := v
-					v = (v & 0xF0) >> 4 | (v & 0x0F) << 4
-					v = (v & 0xCC) >> 2 | (v & 0x33) << 2
-					v = (v & 0xAA) >> 1 | (v & 0x55) << 1
-					return v
+				if sprite.attributes.y_flip {
+					row = 15 - row
 				}
-				lo = flip_byte(lo)
-				hi = flip_byte(hi)
+
+				if row < 8 {
+					offset += u16(sprite.tile_id & 0xFE) * 16
+					offset += u16(row)
+				} else {
+					offset += u16((sprite.tile_id & 0xFE) + 1) * 16
+					offset += u16(row - 8)
+				}
+
 			}
 
-			sprites_shifter_pattern_lo[i] = lo
-			sprites_shifter_pattern_hi[i] = hi
+			flipbyte :: proc(b: u8) -> u8 {
+				b := b
+				b = (b & 0xF0) >> 4 | (b & 0x0F) << 4
+				b = (b & 0xCC) >> 2 | (b & 0x33) << 2
+				b = (b & 0xAA) >> 1 | (b & 0x55) << 1
+				return b
+			}
+
+			if sprite.attributes.x_flip {
+				sprites_shifter_pattern_lo[i] = flipbyte(ppu_mem_read(offset))
+				sprites_shifter_pattern_hi[i] = flipbyte(ppu_mem_read(offset + 8))
+			} else {
+				sprites_shifter_pattern_lo[i] = ppu_mem_read(offset)
+				sprites_shifter_pattern_hi[i] = ppu_mem_read(offset + 8)
+			}
 		}
 	}
 
@@ -475,6 +495,7 @@ ppu_tick :: proc() {
 
 		if scan_line == -1 && dot == 1 {
 			ppu_status.vblank = false
+			ppu_status.sprite_zero_hit = false
 		}
 
 		if (dot >= 2 && dot < 258) || (dot >= 321 && dot < 338) {
@@ -482,10 +503,9 @@ ppu_tick :: proc() {
 			switch (dot - 1) % 8 {
 			case 0:
 				load_bg_shifters()
-				bg_next_tile_id =
-					nametable[get_nametable_address(0x2000 | (vram_addr.addr & 0x0FFF))]
+				bg_next_tile_id = ppu_mem_read(0x2000 | (vram_addr.addr & 0x0FFF))
 			case 2:
-				address := get_nametable_address(
+				bg_next_tile_attrib = ppu_mem_read(
 					0x23C0 |
 					(vram_addr.reg.nametable_y << 11) |
 					(vram_addr.reg.nametable_x << 10) |
@@ -493,21 +513,17 @@ ppu_tick :: proc() {
 					(vram_addr.reg.coarse_x >> 2),
 				)
 
-				bg_next_tile_attrib = nametable[address]
-
 				if vram_addr.reg.coarse_y & 0x02 != 0 do bg_next_tile_attrib >>= 4
 				if vram_addr.reg.coarse_x & 0x02 != 0 do bg_next_tile_attrib >>= 2
 
 				bg_next_tile_attrib &= 0x03
 			case 4, 6:
-				bg_offset := uint(ppu_ctrl.background_pattern_table ? 0x1000 : 0x0000)
-				tile_base_addr_lo := u16(
-					bg_offset + uint(bg_next_tile_id) * 16 + uint(vram_addr.reg.fine_y),
-				)
+				bg_offset := u16(ppu_ctrl.background_pattern_table ? 0x1000 : 0x0000)
+				tile_base_addr_lo := bg_offset + u16(bg_next_tile_id) * 16 + vram_addr.reg.fine_y
 				tile_base_addr_hi := tile_base_addr_lo + 8
 
-				if (dot - 1) % 8 == 4 do bg_next_tile_lo = current_cart.ines.chr_rom[tile_base_addr_lo]
-				if (dot - 1) % 8 == 6 do bg_next_tile_hi = current_cart.ines.chr_rom[tile_base_addr_hi]
+				if (dot - 1) % 8 == 4 do bg_next_tile_lo = ppu_mem_read(tile_base_addr_lo)
+				if (dot - 1) % 8 == 6 do bg_next_tile_hi = ppu_mem_read(tile_base_addr_hi)
 			case 7:
 				increment_scroll_x()
 			}
@@ -530,14 +546,13 @@ ppu_tick :: proc() {
 		}
 	}
 
-
 	if scan_line >= 0 && scan_line < 240 && dot >= 1 && dot <= 256 {
 		bg_pixel: u8
 		bg_palette: u8
 
 		sprite_pixel: u8
 		sprite_palette: u8
-		sprite_priority: u8
+		sprite_prio: bool
 
 		if ppu_mask.background_rendering {
 			bit_mask := u16(0x8000 >> fine_x)
@@ -553,24 +568,37 @@ ppu_tick :: proc() {
 		}
 
 		if ppu_mask.sprite_rendering {
+			found_sprite: bool
+
+			sprite_zero_being_rendered = false
+
 			for i := u8(0); i < next_sprites_count; i += 1 {
 				sprite := &next_sprites[i]
 
+				if i == 0 do sprite_zero_being_rendered = true
+
 				if sprite.x == 0 {
-					pixel_lo: u8 = (sprites_shifter_pattern_lo[i] & 0x80) != 0 ? 1 : 0
-					pixel_hi: u8 = (sprites_shifter_pattern_hi[i] & 0x80) != 0 ? 1 : 0
+					if found_sprite {
+						sprites_shifter_pattern_lo[i] <<= 1
+						sprites_shifter_pattern_hi[i] <<= 1
+						continue
+					}
+
+					pixel :=
+						((sprites_shifter_pattern_hi[i] & 0x80) >> 6) |
+						((sprites_shifter_pattern_lo[i] & 0x80) >> 7)
 
 					sprites_shifter_pattern_lo[i] <<= 1
 					sprites_shifter_pattern_hi[i] <<= 1
 
-					if sprite_pixel == 0 {
-						pixel := pixel_lo + pixel_hi * 2
-						if pixel != 0 {
-							sprite_pixel = pixel
-							sprite_palette = sprite.attributes.palette + 4
-							sprite_priority = sprite.attributes.priority
-						}
+					if pixel == 0 {
+						continue
 					}
+
+					sprite_pixel = pixel
+					sprite_palette = sprite.attributes.palette + 4
+					sprite_prio = !sprite.attributes.not_priority
+					found_sprite = true
 				} else {
 					sprite.x -= 1
 				}
@@ -579,20 +607,44 @@ ppu_tick :: proc() {
 
 		color_index: u8
 
-		if bg_pixel == 0 && sprite_pixel == 0 {
-			color_index = palette_ram[get_palette_address(0)]
-		} else if bg_pixel == 0 && sprite_pixel > 0 {
-			color_index = palette_ram[get_palette_address(u16(sprite_palette * 4 + sprite_pixel))]
-		} else if bg_pixel > 0 && sprite_pixel == 0 {
-			color_index = palette_ram[get_palette_address(u16(bg_palette * 4 + bg_pixel))]
-		} else {
-			if sprite_priority == 0 {
-				color_index = palette_ram[get_palette_address(u16(sprite_palette * 4 + sprite_pixel))]
-			} else {
-				color_index = palette_ram[get_palette_address(u16(bg_palette * 4 + bg_pixel))]
+		pixel: u8
+		palette: u8
+
+		if sprite_pixel != 0 {
+
+			// sprite zero hit
+			if bg_pixel != 0 &&
+			   sprite_zero_hit_possible &&
+			   sprite_zero_being_rendered &&
+			   ppu_mask.background_rendering &&
+			   ppu_mask.sprite_rendering {
+
+				if !(ppu_mask.render_left_bg | ppu_mask.render_left_sprites) {
+
+				} else {
+					ppu_status.sprite_zero_hit = true
+				}
+
 			}
+
+			if sprite_prio {
+				pixel = sprite_pixel
+				palette = sprite_palette
+			} else {
+				if bg_pixel != 0 {
+					pixel = bg_pixel
+					palette = bg_palette
+				} else {
+					pixel = sprite_pixel
+					palette = sprite_palette
+				}
+			}
+		} else {
+			pixel = bg_pixel
+			palette = bg_palette
 		}
 
+		color_index = palette_ram[get_palette_address(u16(palette * 4 + pixel))]
 		frame_buffer[dot - 1 + uint(scan_line) * 256] = NES_PALETTE[color_index]
 	}
 
