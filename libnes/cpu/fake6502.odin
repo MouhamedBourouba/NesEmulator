@@ -23,9 +23,9 @@ foreign c6502 {
 	status: c.uint8_t
 }
 
-current_cart: ^cartridge.Cartridge
+_current_cart: ^cartridge.Cartridge
 
 cpu_init :: proc(cart: ^cartridge.Cartridge) {
-	current_cart = cart
+	_current_cart = cart
 	reset6502()
 }

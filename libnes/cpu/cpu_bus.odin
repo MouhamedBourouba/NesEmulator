@@ -38,7 +38,7 @@ in_range :: proc(addr, lo, hi: u16) -> bool {
 	return addr >= lo && addr <= hi
 }
 
-get_cpu_region :: proc(addr: u16) -> MemoryRegion {
+_get_cpu_region :: proc(addr: u16) -> MemoryRegion {
 	switch {
 	case in_range(addr, RAM_BEGIN, RAM_END):
 		return .RAM
@@ -60,7 +60,7 @@ get_cpu_region :: proc(addr: u16) -> MemoryRegion {
 @(export)
 write6502 :: proc "c" (address: c.uint16_t, value: c.uint8_t) {
 	context = runtime.default_context()
-	switch get_cpu_region(u16(address)) {
+	switch _get_cpu_region(u16(address)) {
 	case .RAM:
 		ram.ram_write(address, value)
 	case .PPU:
@@ -76,7 +76,7 @@ write6502 :: proc "c" (address: c.uint16_t, value: c.uint8_t) {
 @(export)
 read6502 :: proc "c" (address: c.uint16_t) -> c.uint8_t {
 	context = runtime.default_context()
-	switch get_cpu_region(u16(address)) {
+	switch _get_cpu_region(u16(address)) {
 	case .RAM:
 		return ram.ram_read(address)
 	case .PPU:
@@ -84,7 +84,7 @@ read6502 :: proc "c" (address: c.uint16_t) -> c.uint8_t {
 	case .IO:
 		return io.io_read(address)
 	case .ROM:
-		return cartridge.cartridge_cpu_read(current_cart, address)
+		return cartridge.cartridge_cpu_read(_current_cart, address)
 	case .EXPANTION_ROM:
 	case .SRAM:
 	}

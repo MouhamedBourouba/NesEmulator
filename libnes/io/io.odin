@@ -29,15 +29,15 @@ input_state_to_byte :: proc(state: InputState) -> u8 {
 }
 
 set_controller_a :: proc(state: InputState) {
-	controller[0] = input_state_to_byte(state)
+	_controller[0] = input_state_to_byte(state)
 }
 
 set_controller_b :: proc(state: InputState) {
-	controller[1] = input_state_to_byte(state)
+	_controller[1] = input_state_to_byte(state)
 }
 
-controller: [2]u8
-controller_state: [2]u8
+_controller: [2]u8
+_controller_state: [2]u8
 
 io_read :: proc(address: u16) -> u8 {
 	if address == 0x4014 {
@@ -46,8 +46,8 @@ io_read :: proc(address: u16) -> u8 {
 	if address == 0x4016 || address == 0x4017 {
 		idx := address & 1
 
-		value := controller_state[idx] & 1
-		controller_state[idx] >>= 1
+		value := _controller_state[idx] & 1
+		_controller_state[idx] >>= 1
 
 		return u8(value)
 	}
@@ -59,6 +59,6 @@ io_write :: proc(address: u16, value: u8) {
 		ppu.ppu_register_write(address, value)
 	}
 	if address == 0x4016 || address == 0x4017 {
-		controller_state[address & 0x1] = controller[address & 0x1]
+		_controller_state[address & 0x1] = _controller[address & 0x1]
 	}
 }

@@ -152,12 +152,12 @@ ppu_init :: proc(
 	_current_cart = cart
 }
 
-increment_vram_address :: proc() {
+_increment_vram_address :: proc() {
 	_vram_addr.addr += _ppu_ctrl.vram_increment ? 32 : 1
 }
 
 ppu_register_read :: proc(address: u16) -> u8 {
-	switch get_ppu_register(address) {
+	switch _get_ppu_register(address) {
 	case .PPUStatus:
 		old := _ppu_status
 		_ppu_status.vblank = false
@@ -167,9 +167,9 @@ ppu_register_read :: proc(address: u16) -> u8 {
 		return _oam[+_oam_addr]
 	case .PPUData:
 		old_buf := _data_buf
-		_data_buf = ppu_mem_read(_vram_addr.addr)
-		region := get_ppu_region(_vram_addr.addr)
-		increment_vram_address()
+		_data_buf = _ppu_mem_read(_vram_addr.addr)
+		region := _get_ppu_region(_vram_addr.addr)
+		_increment_vram_address()
 
 		if region == .PALETTE {
 			return _data_buf
@@ -187,7 +187,7 @@ ppu_register_read :: proc(address: u16) -> u8 {
 }
 
 ppu_register_write :: proc(address: u16, value: u8) {
-	switch get_ppu_register(address) {
+	switch _get_ppu_register(address) {
 	case .PPUStatus:
 
 	case .PPUScroll:
@@ -239,8 +239,8 @@ ppu_register_write :: proc(address: u16, value: u8) {
 		}
 
 	case .PPUData:
-		ppu_mem_write(_vram_addr.addr, value)
-		increment_vram_address()
+		_ppu_mem_write(_vram_addr.addr, value)
+		_increment_vram_address()
 
 	case .Invalid:
 	}
@@ -250,7 +250,7 @@ in_range :: proc(addr, lo, hi: u16) -> bool {
 	return addr >= lo && addr <= hi
 }
 
-get_ppu_region :: proc(addr: u16) -> PPUMemoryRegion {
+_get_ppu_region :: proc(addr: u16) -> PPUMemoryRegion {
 	switch {
 	case in_range(addr, CHR_ROM_BEGIN, CHR_ROM_END):
 		return .CHR_ROM
@@ -263,7 +263,7 @@ get_ppu_region :: proc(addr: u16) -> PPUMemoryRegion {
 	}
 }
 
-get_ppu_register :: proc(address: u16) -> PPURegisters {
+_get_ppu_register :: proc(address: u16) -> PPURegisters {
 	if address == 0x4014 do return .OAMDMA
 	switch (address & 0x7) {
 	case 0:
@@ -286,7 +286,7 @@ get_ppu_register :: proc(address: u16) -> PPURegisters {
 	return .Invalid
 }
 
-get_nametable_address :: proc(address: u16) -> u16 {
+_get_nametable_address :: proc(address: u16) -> u16 {
 	nametable_bank := (address - 0x2000) / 0x400
 	nametable_pos := (address - 0x2000) & 0x3FF
 	offset: u16
@@ -302,7 +302,7 @@ get_nametable_address :: proc(address: u16) -> u16 {
 	return offset + nametable_pos
 }
 
-get_palette_address :: proc(address: u16) -> u16 {
+_get_palette_address :: proc(address: u16) -> u16 {
 	addr := (address - PALETTE_BEGIN) & 0x1F
 	if addr == 0x10 || addr == 0x14 || addr == 0x18 || addr == 0x1C {
 		addr -= 0x10
@@ -310,28 +310,28 @@ get_palette_address :: proc(address: u16) -> u16 {
 	return addr
 }
 
-ppu_mem_read :: proc(address: u16) -> u8 {
-	switch get_ppu_region(address) {
+_ppu_mem_read :: proc(address: u16) -> u8 {
+	switch _get_ppu_region(address) {
 	case .CHR_ROM:
 		return cartridge.cartridge_ppu_read(_current_cart, address)
 	case .NAMETABLE:
-		return _nametable[get_nametable_address(address)]
+		return _nametable[_get_nametable_address(address)]
 	case .PALETTE:
-		return _palette_ram[get_palette_address(address)]
+		return _palette_ram[_get_palette_address(address)]
 	case .INVALID:
 		return 0
 	}
 	unreachable()
 }
 
-ppu_mem_write :: proc(address: u16, value: u8) {
-	switch get_ppu_region(address) {
+_ppu_mem_write :: proc(address: u16, value: u8) {
+	switch _get_ppu_region(address) {
 	case .CHR_ROM:
 		cartridge.cartridge_ppu_write(_current_cart, address, value)
 	case .NAMETABLE:
-		_nametable[get_nametable_address(address)] = value
+		_nametable[_get_nametable_address(address)] = value
 	case .PALETTE:
-		_palette_ram[get_palette_address(address)] = value
+		_palette_ram[_get_palette_address(address)] = value
 	case .INVALID:
 	}
 }
@@ -489,11 +489,11 @@ ppu_tick :: proc() {
 			}
 
 			if sprite.attributes.x_flip {
-				_sprites_shifter_pattern_lo[i] = flipbyte(ppu_mem_read(offset))
-				_sprites_shifter_pattern_hi[i] = flipbyte(ppu_mem_read(offset + 8))
+				_sprites_shifter_pattern_lo[i] = flipbyte(_ppu_mem_read(offset))
+				_sprites_shifter_pattern_hi[i] = flipbyte(_ppu_mem_read(offset + 8))
 			} else {
-				_sprites_shifter_pattern_lo[i] = ppu_mem_read(offset)
-				_sprites_shifter_pattern_hi[i] = ppu_mem_read(offset + 8)
+				_sprites_shifter_pattern_lo[i] = _ppu_mem_read(offset)
+				_sprites_shifter_pattern_hi[i] = _ppu_mem_read(offset + 8)
 			}
 		}
 	}
@@ -513,9 +513,9 @@ ppu_tick :: proc() {
 			switch (_dot - 1) % 8 {
 			case 0:
 				load_bg_shifters()
-				_bg_next_tile_id = ppu_mem_read(0x2000 | (_vram_addr.addr & 0x0FFF))
+				_bg_next_tile_id = _ppu_mem_read(0x2000 | (_vram_addr.addr & 0x0FFF))
 			case 2:
-				_bg_next_tile_attrib = ppu_mem_read(
+				_bg_next_tile_attrib = _ppu_mem_read(
 					0x23C0 |
 					(_vram_addr.reg.nametable_y << 11) |
 					(_vram_addr.reg.nametable_x << 10) |
@@ -532,8 +532,8 @@ ppu_tick :: proc() {
 				tile_base_addr_lo := bg_offset + u16(_bg_next_tile_id) * 16 + _vram_addr.reg.fine_y
 				tile_base_addr_hi := tile_base_addr_lo + 8
 
-				if (_dot - 1) % 8 == 4 do _bg_next_tile_lo = ppu_mem_read(tile_base_addr_lo)
-				if (_dot - 1) % 8 == 6 do _bg_next_tile_hi = ppu_mem_read(tile_base_addr_hi)
+				if (_dot - 1) % 8 == 4 do _bg_next_tile_lo = _ppu_mem_read(tile_base_addr_lo)
+				if (_dot - 1) % 8 == 6 do _bg_next_tile_hi = _ppu_mem_read(tile_base_addr_hi)
 			case 7:
 				increment_scroll_x()
 			}
@@ -665,7 +665,7 @@ ppu_tick :: proc() {
 		if pixel == 0 {
 			color_index = _palette_ram[0]
 		} else {
-			color_index = _palette_ram[get_palette_address(u16(palette * 4 + pixel))]
+			color_index = _palette_ram[_get_palette_address(u16(palette * 4 + pixel))]
 		}
 		frame_buffer[_dot - 1 + uint(_scan_line) * 256] = NES_PALETTE[color_index]
 	}
