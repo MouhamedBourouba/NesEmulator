@@ -37,7 +37,7 @@ main :: proc() {
 
 	texture := rl.LoadTextureFromImage(
 		rl.Image {
-			data = nes.nes_frame_buffer(),
+			data = nil,
 			format = rl.PixelFormat.UNCOMPRESSED_R8G8B8A8,
 			height = 240,
 			width = 256,

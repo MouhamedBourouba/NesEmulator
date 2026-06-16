@@ -32,7 +32,7 @@ void nes_frame(void);
 
 // Get a pointer to the raw RGBA frame buffer.
 // The buffer size is FRAME_BUFFER_SIZE bytes.
-void *nes_frame_buffer(void);
+uint8_t *nes_frame_buffer(void);
 
 // Set the button state for Controller 1.
 void nes_set_input_controller_a(InputState state);

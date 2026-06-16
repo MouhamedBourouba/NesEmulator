@@ -11,6 +11,10 @@ InputState :: io.InputState
 nes_init :: proc "c" (data: [^]c.uint8_t, len: int) -> bool {
 	context = runtime.default_context()
 
+	if data == nil || len <= 0 {
+		return false
+	}
+
 	data_slice := data[:len]
 	return init_internal(data_slice)
 }
@@ -39,8 +43,8 @@ nes_frame_buffer :: proc "c" () -> rawptr {
 @(export)
 nes_set_input_controller_a :: proc "c" (state: io.InputState) {
 	context = runtime.default_context()
-
 	assert(_is_initialized)
+
 	io.set_controller_a(state)
 }
 

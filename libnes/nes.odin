@@ -12,10 +12,6 @@ _cycles: uint
 _cpu_stall_counter: uint
 _is_initialized: bool
 
-stall_cpu :: proc(cycles_to_stall: uint) {
-	_cpu_stall_counter += cycles_to_stall
-}
-
 init_internal :: proc(data: []u8) -> bool {
 	_current_cart = cartridge.new_cartridge_from_data(data) or_return
 
@@ -24,7 +20,7 @@ init_internal :: proc(data: []u8) -> bool {
 	ppu.ppu_init(
 		proc() {cpu.nmi6502()},
 		proc(address: u16) -> u8 {return cpu.read6502(address)},
-		stall_cpu,
+		proc(cycles_to_stall: uint) {_cpu_stall_counter += cycles_to_stall},
 		&_current_cart,
 	)
 
