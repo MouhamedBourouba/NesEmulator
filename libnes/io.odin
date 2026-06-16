@@ -1,4 +1,4 @@
-package main
+package NES
 
 controller: [2]u8
 controller_state: [2]u8

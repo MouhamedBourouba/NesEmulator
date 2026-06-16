@@ -1,4 +1,4 @@
-package main
+package NES
 
 import "base:runtime"
 import "core:c"

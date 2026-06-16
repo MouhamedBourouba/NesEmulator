@@ -1,7 +1,5 @@
-package main
+package NES
 
-import "core:c"
-import "core:fmt"
 import "cpu"
 
 CHR_ROM_BEGIN: u16 : 0x0000
@@ -135,15 +133,7 @@ sprites_shifter_pattern_hi: [8]u8
 sprite_zero_hit_possible: bool
 sprite_zero_being_rendered: bool
 
-frame_buffer: [256 * 240]u32
-
-ppu_init :: proc() {
-	fmt.printfln("[LOG]: PPU initialized")
-}
-
-ppu_destroy :: proc() {
-	fmt.printfln("[LOG]: PPU destroyed")
-}
+frame_buffer: [FRAME_BUFFER_SIZE]u32
 
 increment_vram_address :: proc() {
 	vram_addr.addr += ppu_ctrl.vram_increment ? 32 : 1
@@ -621,8 +611,16 @@ ppu_tick :: proc() {
 
 				if !(ppu_mask.render_left_bg | ppu_mask.render_left_sprites) {
 
+					if dot >= 9 && dot <= 258 {
+						ppu_status.sprite_zero_hit = true
+					}
+
 				} else {
-					ppu_status.sprite_zero_hit = true
+
+					if dot >= 1 && dot <= 258 {
+						ppu_status.sprite_zero_hit = true
+					}
+
 				}
 
 			}
@@ -644,7 +642,11 @@ ppu_tick :: proc() {
 			palette = bg_palette
 		}
 
-		color_index = palette_ram[get_palette_address(u16(palette * 4 + pixel))]
+		if pixel == 0 {
+			color_index = palette_ram[0]
+		} else {
+			color_index = palette_ram[get_palette_address(u16(palette * 4 + pixel))]
+		}
 		frame_buffer[dot - 1 + uint(scan_line) * 256] = NES_PALETTE[color_index]
 	}
 

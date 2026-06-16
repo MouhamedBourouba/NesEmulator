@@ -1,4 +1,4 @@
-package main
+package NES
 
 ram: [1024 * 2]u8
 

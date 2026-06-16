@@ -1,12 +1,7 @@
-run: fake6502.a
-	odin run . -error-pos-style:unix -- ./resources/DonkeyKong.nes
+run: libnes
+	make -C ./desktop/
 
-fake6502.a: ./cpu/fake6502.c
-	gcc -c ./cpu/fake6502.c -o fake6502.o
-	ar rcs fake6502.a fake6502.o
-	rm ./fake6502.o
+libnes:
+	make -C libnes
 
-PHONY: run
-
-# run: fake6502.a
-# 	odin build . -debug -error-pos-style:unix 
+PHONY: run libnes

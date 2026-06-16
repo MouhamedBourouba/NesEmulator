@@ -1,4 +1,4 @@
-package main
+package NES
 
 // UNCOMPRESSED_R8G8B8A8
 NES_PALETTE := [64]u32 {

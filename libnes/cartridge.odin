@@ -1,7 +1,5 @@
-package main
+package NES
 
-import "core:fmt"
-import "core:os"
 import "core:slice"
 import "mappers"
 
@@ -10,9 +8,8 @@ Cartridge :: struct {
 	ines:   INes,
 }
 
-new_cartridge_from_path :: proc(file_path: string) -> (cart: Cartridge, ok: bool) {
-	ines := new_ines_from_file(file_path) or_return
-	ines_print_header(ines)
+new_cartridge_from_data :: proc(data: []byte) -> (cart: Cartridge, ok: bool) {
+	ines := parse_ines_from_data(data) or_return
 
 	mapper: mappers.Mapper
 
@@ -27,7 +24,6 @@ new_cartridge_from_path :: proc(file_path: string) -> (cart: Cartridge, ok: bool
 	}
 
 	if mapper == nil {
-		fmt.println("Unsupported mapper")
 		return {}, false
 	}
 
@@ -48,10 +44,6 @@ cartridge_ppu_read :: proc(cartridge: Cartridge, address: u16) -> u8 {
 
 cartridge_ppu_write :: proc(cartridge: Cartridge, address: u16, value: u8) {
 	mappers.mapper_ppu_write(cartridge.mapper, address, value)
-}
-
-cartridge_destory :: proc(cart: Cartridge) {
-	delete_ines(cart.ines)
 }
 
 NES_MAGIC :: [?]u8{0x4E, 0x45, 0x53, 0x1A}
@@ -76,32 +68,8 @@ INes :: struct {
 	is_nes2:         bool,
 }
 
-ines_print_header :: proc(ines: INes) {
-	fmt.println("=== iNES Header ===")
-	fmt.println("Mapper:               ", ines.mapper_id)
-	fmt.println("PRG ROM size:         ", len(ines.prg_rom) / 1024, "KB")
-	fmt.println("PRG ROM banks:        ", ines.prg_banks)
-	fmt.println("CHR ROM size:         ", len(ines.chr_rom) / 1024, "KB")
-	fmt.println("CHR ROM banks:        ", ines.chr_banks)
-	fmt.println("Nametable arrangement:", ines.mirror_mode)
-	fmt.println("Has battery:          ", ines.has_battery)
-	fmt.println("Has trainer:          ", ines.has_trainer)
-	fmt.println("Alt nametable:        ", ines.alt_nametable)
-	fmt.println("VS Unisystem:         ", ines.is_vs_unisystem)
-	fmt.println("PlayChoice-10:        ", ines.is_playchoice)
-	fmt.println("NES 2.0:              ", ines.is_nes2)
-	os.flush(os.stdout)
-}
-
-new_ines_from_file :: proc(file_path: string) -> (ines: INes, ok: bool) {
+parse_ines_from_data :: proc(data: []byte) -> (ines: INes, ok: bool) {
 	offset: uint
-
-	data, err := os.read_entire_file(file_path, context.allocator)
-	if err != nil {
-		return {}, false
-	}
-	defer delete(data)
-
 	magic_bytes := data[offset:offset + 4]; offset += 4
 
 	if magic_bytes[0] != 0x4E ||
@@ -117,7 +85,7 @@ new_ines_from_file :: proc(file_path: string) -> (ines: INes, ok: bool) {
 	flags6 := data[offset]; offset += 1
 	flags7 := data[offset]; offset += 1
 
-	mirror_mode := ((flags6 & 0x01) != 0) ? MirrorMode.Horizontal : MirrorMode.Vertical // 0=vertical  1=horizontal
+	mirror_mode := ((flags6 & 0x01) != 0) ? MirrorMode.Vertical : MirrorMode.Horizontal
 
 	has_battery := (flags6 & 0x02) != 0
 	has_trainer := (flags6 & 0x04) != 0
@@ -166,7 +134,42 @@ new_ines_from_file :: proc(file_path: string) -> (ines: INes, ok: bool) {
 		true
 }
 
-delete_ines :: proc(ines: INes) {
-	delete(ines.prg_rom)
-	delete(ines.chr_rom)
-}
+// ines_print_header :: proc(ines: INes) {
+// 	fmt.println("=== iNES Header ===")
+// 	fmt.println("Mapper:               ", ines.mapper_id)
+// 	fmt.println("PRG ROM size:         ", len(ines.prg_rom) / 1024, "KB")
+// 	fmt.println("PRG ROM banks:        ", ines.prg_banks)
+// 	fmt.println("CHR ROM size:         ", len(ines.chr_rom) / 1024, "KB")
+// 	fmt.println("CHR ROM banks:        ", ines.chr_banks)
+// 	fmt.println("Nametable arrangement:", ines.mirror_mode)
+// 	fmt.println("Has battery:          ", ines.has_battery)
+// 	fmt.println("Has trainer:          ", ines.has_trainer)
+// 	fmt.println("Alt nametable:        ", ines.alt_nametable)
+// 	fmt.println("VS Unisystem:         ", ines.is_vs_unisystem)
+// 	fmt.println("PlayChoice-10:        ", ines.is_playchoice)
+// 	fmt.println("NES 2.0:              ", ines.is_nes2)
+// 	os.flush(os.stdout)
+// }
+
+// new_cartridge_path :: proc(file_path: string) -> (cart: Cartridge, ok: bool) {
+// 	ines := new_ines_from_file(file_path) or_return
+//
+// 	mapper: mappers.Mapper
+//
+// 	switch ines.mapper_id {
+// 	case 0:
+// 		mapper = mappers.Mapper000 {
+// 			chr       = ines.chr_rom,
+// 			prg       = ines.prg_rom,
+// 			chr_banks = ines.chr_banks,
+// 			prg_banks = ines.prg_banks,
+// 		}
+// 	}
+//
+// 	if mapper == nil {
+// 		fmt.println("Unsupported mapper")
+// 		return {}, false
+// 	}
+//
+// 	return {mapper, ines}, true
+// }
