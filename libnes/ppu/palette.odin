@@ -1,6 +1,7 @@
-package NES
+package ppu
 
 // UNCOMPRESSED_R8G8B8A8
+// NES hardcoded palette
 NES_PALETTE := [64]u32 {
 	0xFF646666,
 	0xFF882A00,

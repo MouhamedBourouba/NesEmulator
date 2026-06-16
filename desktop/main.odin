@@ -75,7 +75,6 @@ main :: proc() {
 			continue
 		}
 
-
 		state := nes.InputState {
 			a      = rl.IsKeyDown(.X),
 			b      = rl.IsKeyDown(.Z),
@@ -95,5 +94,7 @@ main :: proc() {
 			rl.UpdateTexture(texture, nes.nes_frame_buffer())
 			rl.DrawTextureEx(texture, {0, 0}, 0, 2.2, rl.WHITE)
 		}
+
+		rl.DrawFPS(0, 0)
 	}
 }

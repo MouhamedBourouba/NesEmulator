@@ -1,5 +1,9 @@
-package NES
+package cpu
 
+import "../cartridge/"
+import "../io/"
+import "../ppu"
+import "../ram"
 import "base:runtime"
 import "core:c"
 
@@ -58,13 +62,12 @@ write6502 :: proc "c" (address: c.uint16_t, value: c.uint8_t) {
 	context = runtime.default_context()
 	switch get_cpu_region(u16(address)) {
 	case .RAM:
-		ram_write(address, value)
+		ram.ram_write(address, value)
 	case .PPU:
-		ppu_register_write(address, value)
+		ppu.ppu_register_write(address, value)
 	case .IO:
-		io_write(address, value)
+		io.io_write(address, value)
 	case .ROM:
-		cartridge_cpu_write(current_cart, address, value)
 	case .SRAM:
 	case .EXPANTION_ROM:
 	}
@@ -75,13 +78,13 @@ read6502 :: proc "c" (address: c.uint16_t) -> c.uint8_t {
 	context = runtime.default_context()
 	switch get_cpu_region(u16(address)) {
 	case .RAM:
-		return ram_read(address)
+		return ram.ram_read(address)
 	case .PPU:
-		return ppu_register_read(address)
+		return ppu.ppu_register_read(address)
 	case .IO:
-		return io_read(address)
+		return io.io_read(address)
 	case .ROM:
-		return cartridge_cpu_read(current_cart, address)
+		return cartridge.cartridge_cpu_read(current_cart, address)
 	case .EXPANTION_ROM:
 	case .SRAM:
 	}

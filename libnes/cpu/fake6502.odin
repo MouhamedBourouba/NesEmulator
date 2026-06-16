@@ -1,5 +1,6 @@
 package cpu
 
+import "../cartridge/"
 import "core:c"
 
 when ODIN_OS == .Linux do foreign import c6502 "../fake6502.a"
@@ -20,4 +21,11 @@ foreign c6502 {
 	x: c.uint8_t
 	y: c.uint8_t
 	status: c.uint8_t
+}
+
+current_cart: ^cartridge.Cartridge
+
+cpu_init :: proc(cart: ^cartridge.Cartridge) {
+	current_cart = cart
+	reset6502()
 }

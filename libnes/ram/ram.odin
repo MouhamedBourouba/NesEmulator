@@ -1,4 +1,4 @@
-package NES
+package ram
 
 ram: [1024 * 2]u8
 
