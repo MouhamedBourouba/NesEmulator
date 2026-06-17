@@ -23,16 +23,21 @@ draw_text_centered_xy :: proc(text: cstring, font_size: i32, color: rl.Color) {
 	rl.DrawText(text, x, y, font_size, color)
 }
 
+_rom_data: []byte
+
 main :: proc() {
 	rl.InitWindow(800, 600, "Nes emulator")
 	rl.SetTargetFPS(70)
+
+	defer if nes.nes_is_initialized() do delete(_rom_data)
 
 	invalid_nes_file_dropped: bool
 
 	if len(os.args) > 1 {
 		rom_path := os.args[1]
-		data, _ := os.read_entire_file(rom_path, context.allocator)
-		nes.nes_init(raw_data(data), len(data))
+		_rom_data, _ = os.read_entire_file(rom_path, context.allocator)
+
+		nes.nes_init(raw_data(_rom_data), len(_rom_data))
 	}
 
 	texture := rl.LoadTextureFromImage(
@@ -51,6 +56,12 @@ main :: proc() {
 
 		rl.ClearBackground(rl.RAYWHITE)
 
+		if rl.IsKeyPressed(.P) {
+			fmt.println("ptr before delete:", raw_data(_rom_data))
+			delete(_rom_data)
+			fmt.println("deleted")
+		}
+
 		if rl.IsFileDropped() {
 			file_paths := rl.LoadDroppedFiles()
 			defer rl.UnloadDroppedFiles(file_paths)
@@ -59,8 +70,10 @@ main :: proc() {
 				fmt.println(string(file_paths.paths[i]))
 			}
 
-			data, _ := os.read_entire_file(string(file_paths.paths[0]), context.allocator)
-			ok := nes.nes_init(raw_data(data), len(data))
+			if _rom_data != nil do delete(_rom_data)
+			_rom_data, _ = os.read_entire_file(string(file_paths.paths[0]), context.allocator)
+
+			ok := nes.nes_init(raw_data(_rom_data), len(_rom_data))
 
 			invalid_nes_file_dropped = !ok
 			if !ok do fmt.println("unvalid rom dropped")
@@ -70,7 +83,7 @@ main :: proc() {
 			draw_text_centered_xy(
 				invalid_nes_file_dropped ? "Invalid .nes file dropped please try again." : "Drop .nes file to load.",
 				32,
-				rl.RAYWHITE,
+				rl.BLACK,
 			)
 			continue
 		}

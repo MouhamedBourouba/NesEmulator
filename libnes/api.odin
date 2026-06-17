@@ -1,5 +1,4 @@
 package nes
-
 import "base:runtime"
 import "core:c"
 import "io"
@@ -8,7 +7,7 @@ import "ppu"
 InputState :: io.InputState
 
 @(export)
-nes_init :: proc "c" (data: [^]c.uint8_t, len: int) -> bool {
+nes_init :: proc "c" (data: [^]c.uint8_t, len: c.size_t) -> bool {
 	context = runtime.default_context()
 
 	if data == nil || len <= 0 {

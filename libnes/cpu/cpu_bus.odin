@@ -60,6 +60,7 @@ _get_cpu_region :: proc(addr: u16) -> MemoryRegion {
 @(export)
 write6502 :: proc "c" (address: c.uint16_t, value: c.uint8_t) {
 	context = runtime.default_context()
+
 	switch _get_cpu_region(u16(address)) {
 	case .RAM:
 		ram.ram_write(address, value)
@@ -68,6 +69,7 @@ write6502 :: proc "c" (address: c.uint16_t, value: c.uint8_t) {
 	case .IO:
 		io.io_write(address, value)
 	case .ROM:
+		cartridge.cartridge_cpu_write(_current_cart, address, value)
 	case .SRAM:
 	case .EXPANTION_ROM:
 	}
@@ -76,6 +78,7 @@ write6502 :: proc "c" (address: c.uint16_t, value: c.uint8_t) {
 @(export)
 read6502 :: proc "c" (address: c.uint16_t) -> c.uint8_t {
 	context = runtime.default_context()
+
 	switch _get_cpu_region(u16(address)) {
 	case .RAM:
 		return ram.ram_read(address)
