@@ -1,5 +1,5 @@
+#include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 
 // 6502 defines
 #define UNDOCUMENTED // when this is defined, undocumented opcodes are handled.

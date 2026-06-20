@@ -1,7 +1,4 @@
-run: libnes
-	make -C ./desktop/
+lib_nes:
+	./libnes/build.sh
 
-libnes:
-	make -C libnes
-
-PHONY: run libnes
+PHONY: run lib_nes

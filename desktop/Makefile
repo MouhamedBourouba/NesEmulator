@@ -1,2 +1,2 @@
 run:
-	odin run . -- ../resources/DonkeyKong.nes
+	odin run . -- ../resources/SuperMarioBros.nes

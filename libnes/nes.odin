@@ -1,5 +1,4 @@
 package nes
-
 import "cartridge"
 import "cpu"
 import "ppu"
@@ -31,12 +30,13 @@ init_internal :: proc(data: []u8) -> bool {
 step_frame :: proc() {
 	for _ in 1 ..= PPU_CYCLES_PER_FRAME {
 		ppu.ppu_tick()
-
 		if _cycles % 3 == 0 {
-			if _cpu_stall_counter == 0 do cpu.exec6502(1)
-			else do _cpu_stall_counter -= 1
+			if _cpu_stall_counter == 0 {
+				cpu.exec6502(1)
+			} else {
+				_cpu_stall_counter -= 1
+			}
 		}
-
 		_cycles += 1
 	}
 }

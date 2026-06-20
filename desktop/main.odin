@@ -27,7 +27,7 @@ _rom_data: []byte
 
 main :: proc() {
 	rl.InitWindow(800, 600, "Nes emulator")
-	rl.SetTargetFPS(70)
+	rl.SetTargetFPS(60)
 
 	defer if nes.nes_is_initialized() do delete(_rom_data)
 
