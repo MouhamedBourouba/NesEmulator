@@ -74,6 +74,17 @@ set_target_properties(${BINARY_NAME}
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# libnes
+add_library(libnes STATIC IMPORTED)
+set_target_properties(libnes PROPERTIES IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/libs/libnes.a")
+
+target_link_libraries(${BINARY_NAME} PRIVATE
+  -Wl,--whole-archive
+  libnes
+  -Wl,--no-whole-archive
+)
+
+target_link_options(${BINARY_NAME} PRIVATE -rdynamic)
 
 # === Installation ===
 # By default, "installing" just makes a relocatable bundle in the build

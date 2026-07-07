@@ -9,6 +9,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  ffi:
+  file_selector:
+  hive_ce: ^2.19.3
+  path_provider: ^2.1.6
+  google_fonts: ^8.1.0
 
 dev_dependencies:
   flutter_test:

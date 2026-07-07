@@ -72,11 +72,12 @@ main :: proc() {
 
 			if _rom_data != nil do delete(_rom_data)
 			_rom_data, _ = os.read_entire_file(string(file_paths.paths[0]), context.allocator)
+			fmt.println("INFO: File dropper: ", file_paths.paths[0])
 
 			ok := nes.nes_init(raw_data(_rom_data), len(_rom_data))
 
 			invalid_nes_file_dropped = !ok
-			if !ok do fmt.println("unvalid rom dropped")
+			if !ok do fmt.println("ERROR: Invalid rom dropped")
 		}
 
 		if !nes.nes_is_initialized() {
