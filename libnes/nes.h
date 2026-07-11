@@ -35,7 +35,7 @@ bool nes_is_initialized(void);
 // Execute one frame
 void nes_frame(void);
 
-// Get a pointer to the raw RGBA frame buffer.
+// Get a pointer to the raw RGBA8888 frame buffer.
 // The buffer size is FRAME_BUFFER_SIZE bytes.
 uint8_t *nes_frame_buffer(void);
 

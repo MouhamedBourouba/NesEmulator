@@ -1,13 +1,13 @@
 ANDROID_JNILIBS_DIR = ./flutter_nes/android/app/src/main/jniLibs/arm64-v8a/
 FLUTTER_LINUX_DIR = ./flutter_nes/linux/libs/
 
-all: copy_lib_to_flutter desktop
+all: copy_lib_to_flutter raynes
 
 libnes:
 	make -C libnes
 
-desktop:
-	odin run ./desktop/ -error-pos-style:unix
+raynes:
+	odin run ./raynes/ -error-pos-style:unix
 
 copy_lib_to_flutter: libnes
 	@mkdir -p $(ANDROID_JNILIBS_DIR)

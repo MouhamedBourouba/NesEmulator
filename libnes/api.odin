@@ -4,6 +4,8 @@ import "core:c"
 import "io"
 import "ppu"
 
+NES_FRAME_BUFFER_SIZE :: (256 * 240 * 4)
+
 InputState :: io.InputState
 
 @(export)
