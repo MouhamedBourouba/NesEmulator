@@ -20,6 +20,12 @@ new_cartridge_from_data :: proc(data: []byte) -> (cart: Cartridge, ok: bool) {
 			chr_banks = ines.chr_banks,
 			prg_banks = ines.prg_banks,
 		}
+	case 2:
+		mapper = mappers.Mapper002 {
+			prg       = ines.prg_rom,
+			chr_banks = ines.chr_banks,
+			prg_banks = ines.prg_banks,
+		}
 	}
 
 	if mapper == nil {

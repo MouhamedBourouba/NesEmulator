@@ -13,6 +13,9 @@ InputState :: struct {
 	right:  bool,
 }
 
+_controller: [2]u8
+_controller_state: [2]u8
+
 input_state_to_byte :: proc(state: InputState) -> u8 {
 	result: u8 = 0
 
@@ -35,9 +38,6 @@ set_controller_a :: proc(state: InputState) {
 set_controller_b :: proc(state: InputState) {
 	_controller[1] = input_state_to_byte(state)
 }
-
-_controller: [2]u8
-_controller_state: [2]u8
 
 io_read :: proc(address: u16) -> u8 {
 	if address == 0x4014 {

@@ -451,7 +451,6 @@ ppu_tick :: proc() {
 			row := _scan_line - int(sprite.y)
 			offset: u16
 
-
 			if sprite_hight == 8 {
 				offset = _ppu_ctrl.sprite_pattern_table ? 0x1000 : 0x0000
 

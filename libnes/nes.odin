@@ -11,7 +11,7 @@ _cycles: uint
 _cpu_stall_counter: uint
 _is_initialized: bool
 
-init_internal :: proc(data: []u8) -> bool {
+_init_internal :: proc(data: []u8) -> bool {
 	_current_cart = cartridge.new_cartridge_from_data(data) or_return
 
 	cpu.cpu_init(&_current_cart)
@@ -27,7 +27,7 @@ init_internal :: proc(data: []u8) -> bool {
 	return true
 }
 
-step_frame :: proc() {
+_step_frame :: proc() {
 	for _ in 1 ..= PPU_CYCLES_PER_FRAME {
 		ppu.ppu_tick()
 		if _cycles % 3 == 0 {

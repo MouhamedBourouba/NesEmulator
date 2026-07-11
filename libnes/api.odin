@@ -15,7 +15,7 @@ nes_init :: proc "c" (data: [^]c.uint8_t, len: c.size_t) -> bool {
 	}
 
 	data_slice := data[:len]
-	return init_internal(data_slice)
+	return _init_internal(data_slice)
 }
 
 @(export)
@@ -28,7 +28,7 @@ nes_frame :: proc "c" () {
 	context = runtime.default_context()
 	assert(_is_initialized)
 
-	step_frame()
+	_step_frame()
 }
 
 @(export)
