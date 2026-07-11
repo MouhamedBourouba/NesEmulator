@@ -6,7 +6,7 @@ NES emulator written in [Odin](https://odin-lang.org/). The core emulation logic
 
 ```
 libnes/         - Core emulation library (Odin)
-  cpu/          - 6502 CPU via fake6502.c
+  cpu/          - 6502 CPU
   ppu/          - Picture Processing Unit
   cartridge/    - iNES ROM parsing + mapper dispatch
     mappers/    - Mappers
@@ -15,7 +15,7 @@ libnes/         - Core emulation library (Odin)
   nes.h         - C header
 
 raynes/         - Desktop frontend (Odin + Raylib)
-flutter_nes/    - Cross-platform frontend (Flutter)
+flutter_nes/    - Flutter frontend suppots Linux, Windows, Android, Ios
 ttynes/         - Terminal frontend
 ```
 
@@ -34,7 +34,7 @@ void     nes_set_input_controller_b(InputState state);
 
 ## Build
 
-**Dependencies:** Odin compiler, Clang, Make. For Android: Android NDK toolchain.
+**Dependencies:** Odin compiler, Clang, Make. Android NDK toolchain for android builds. 
 
 ```sh
 # Build libnes (Linux x64 static + Android arm64 shared)
@@ -51,6 +51,16 @@ make raynes
 
 **raynes** — Raylib-based desktop frontend. Runs directly with `make raynes`.
 
-**flutter_nes** — Flutter app (Linux desktop + Android). Links `libnes` via `dart:ffi`. Emulation runs in a dedicated isolate. Supports a game library (Hive), light/dark theme, and on-screen controller.
+**flutter_nes** — Flutter app (Linux/Windows + Android + Ios). Links `libnes` via `dart:ffi`. Emulation runs in a dedicated isolate. Supports a game library (Hive), light/dark theme, and on-screen controller.
 
 **ttynes** — Terminal renderer.
+
+**webnes** — upcomming ...
+
+
+## See it in action:
+
+https://github.com/user-attachments/assets/86729840-2468-4b94-9d33-088128d7cb26
+
+
+
