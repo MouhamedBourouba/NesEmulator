@@ -1,4 +1,5 @@
 package nes
+
 import "base:runtime"
 import "core:c"
 import "io"

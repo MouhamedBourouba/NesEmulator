@@ -15,8 +15,8 @@ FRAME_TIME :: time.Second / FPS
 NES_WIDTH :: 256
 NES_HIGHT :: 240
 
-TERM_COLS :: 319
-TERM_ROWS :: 65
+TERM_COLS :: 239
+TERM_ROWS :: 49
 
 Pixel :: struct {
 	r, g, b, a: u8,
@@ -58,7 +58,7 @@ poll_input :: proc() -> libnes.InputState {
 			state.b = true
 		case ' ':
 			state.select = true
-		case '\r':
+		case 'l':
 			state.start = true
 		case 'q':
 			disable_raw_mode()

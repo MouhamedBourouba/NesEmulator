@@ -3,9 +3,9 @@ package cpu
 import "../cartridge/"
 import "core:c"
 
-foreign import c6502 "../fake6502_x64.o"
 
-foreign c6502 {
+@(default_calling_convention = "c")
+foreign _ {
 	reset6502 :: proc() ---
 	exec6502 :: proc(tickcount: c.uint32_t) ---
 	step6502 :: proc() ---

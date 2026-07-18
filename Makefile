@@ -1,7 +1,7 @@
-ANDROID_JNILIBS_DIR = ./flutter_nes/android/app/src/main/jniLibs/arm64-v8a/
-FLUTTER_LINUX_DIR = ./flutter_nes/linux/libs/
+ANDROID_JNILIBS_DIR = ./flutternes/android/app/src/main/jniLibs/arm64-v8a/
+FLUTTER_LINUX_DIR = ./flutternes/linux/libs/
 
-all: copy_lib_to_flutter raynes
+all: copy_lib_to_flutter copy_lib_to_webnes raynes
 
 libnes:
 	make -C libnes
@@ -16,5 +16,9 @@ copy_lib_to_flutter: libnes
 	@mkdir -p "$(FLUTTER_LINUX_DIR)"
 	@cp ./libnes/libnes_linux_x64.a "$(FLUTTER_LINUX_DIR)libnes.a"
 	@echo "LOG: copy ./libnes/libnes_linux_x64.a -> $(FLUTTER_LINUX_DIR)libnes.a"
+
+copy_lib_to_webnes: libnes
+	@cp ./libnes/libnes_web.wasm ./webnes/
+	@echo "LOG: copy ./libnes/libnes_web.wasm -> ./webnes/libnes_web.wasm"
 
 .PHONY: run libnes all desktop
