@@ -31,7 +31,6 @@ libnes_linux_x64.o: FORCE
       -build-mode:obj               \
       -o:speed                      \
       -reloc-mode:pic               \
-      -no-entry-point               \
       -out:$@
 
 libnes_freestanding_arm64.o: FORCE
@@ -40,7 +39,6 @@ libnes_freestanding_arm64.o: FORCE
 			-build-mode:obj               \
 			-o:speed                      \
 			-reloc-mode:pic               \
-			-no-entry-point               \
 			-target:freestanding_arm64    \
 			-out:$@
 
