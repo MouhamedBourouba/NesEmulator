@@ -17,6 +17,7 @@ libnes/         - Core emulation library (Odin)
 raynes/         - Desktop frontend (Odin + Raylib)
 flutter_nes/    - Flutter frontend suppots Linux, Windows, Android, Ios
 ttynes/         - Terminal frontend
+webnes/         - Web frontend
 ```
 
 ## C API
