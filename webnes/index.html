@@ -1,99 +1,146 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WebNES</title>
-  <meta name="description" content="NES emulator in the browser.">
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Minimal WebNES</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
 
-  <div class="emulator-container">
-    <div class="screen" id="screen">
-      <!-- Double original resolution: 512x480 -->
-      <div class="screen-viewport">
-        <canvas id="nes-canvas" width="256" height="240"></canvas>
+<body
+  class="bg-[#121212] text-gray-200 h-screen w-screen overflow-hidden flex flex-col items-center justify-center font-sans select-none">
 
-        <div class="drop-zone" id="drop-zone">
-          <p>Drop a .nes file here</p>
-          <p class="sub">or <button class="link-btn" id="browse-btn">browse</button></p>
-        </div>
-
-        <div class="pause-overlay hidden" id="pause-overlay">PAUSED</div>
-      </div>
-    </div>
-
-    <div class="screen-controls">
-      <div class="controls-left">
-        <span id="rom-name" class="rom-name">No ROM</span>
-        <span id="status-text" class="status">Ready</span>
-        <span id="fps-counter" class="fps">— fps</span>
-      </div>
-      <div class="controls-right">
-        <button id="btn-play-pause" disabled>Pause</button>
-        <button id="btn-fullscreen">Fullscreen</button>
-        <button id="btn-keybindings">Options</button>
-        <label class="btn-primary" for="rom-input">Load ROM</label>
-        <input type="file" id="rom-input" accept=".nes" class="sr-only">
-      </div>
+  <!-- Upload View -->
+  <div id="drop-zone"
+    class="absolute inset-0 flex flex-col items-center justify-center bg-[#121212] z-50 transition-colors">
+    <div
+      class="text-center p-8 border-2 border-dashed border-gray-700 rounded-xl max-w-md w-full mx-4 hover:border-gray-500 transition-colors bg-[#1a1a1a]">
+      <svg class="mx-auto h-12 w-12 text-gray-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+      </svg>
+      <h2 class="text-xl font-bold mb-2">Load NES ROM</h2>
+      <p class="text-sm text-gray-400 mb-6">Drag and drop a .nes file here or</p>
+      <label
+        class="px-6 py-2.5 bg-gray-200 text-gray-900 hover:bg-white rounded-md cursor-pointer transition-colors font-medium inline-block text-sm">
+        Browse Files
+        <input type="file" id="file-input" accept=".nes" class="hidden">
+      </label>
     </div>
   </div>
 
-  <!-- Keybindings & Options Modal -->
-  <div class="modal hidden" id="keybindings-modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Options & Keybindings</h3>
-        <button class="close-btn" id="btn-close-modal">&times;</button>
-      </div>
-      
-      <table class="bindings">
-        <tbody>
-          <tr><td><kbd>Arrow keys</kbd></td><td>D-Pad</td></tr>
-          <tr><td><kbd>Z</kbd></td><td>A</td></tr>
-          <tr><td><kbd>X</kbd></td><td>B</td></tr>
-          <tr><td><kbd>Enter</kbd></td><td>Start</td></tr>
-          <tr><td><kbd>Shift</kbd></td><td>Select</td></tr>
-          <tr><td><kbd>P</kbd></td><td>Pause</td></tr>
-          <tr><td><kbd>R</kbd></td><td>Reset</td></tr>
-        </tbody>
-      </table>
+  <!-- Emulator View -->
+  <div id="emulator-container" class="hidden flex-col items-center justify-center w-full h-full relative">
 
-      <div class="settings-group">
-        <div class="setting">
-          <label for="toggle-scanlines">Scanlines</label>
-          <input type="checkbox" id="toggle-scanlines" checked>
-        </div>
-        <div class="setting">
-          <label for="toggle-smooth">Smooth scaling</label>
-          <input type="checkbox" id="toggle-smooth">
-        </div>
+    <!-- Top Bar -->
+    <div class="absolute top-0 w-full p-4 flex justify-end items-center z-50 pointer-events-none">
+      <div
+        class="flex gap-3 pointer-events-auto bg-black/60 p-2 rounded-xl backdrop-blur-md shadow-lg border border-gray-800/50">
+        <button id="toggle-controls-btn"
+          class="text-xs font-semibold text-gray-300 hover:text-white px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700">
+          Controls: Auto
+        </button>
+        <button id="show-keybinds-btn"
+          class="text-xs font-semibold text-gray-300 hover:text-white px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700">
+          Keybinds
+        </button>
       </div>
     </div>
-  </div>
 
-  <!-- Mobile touch pad -->
-  <div class="touch-pad hidden" id="touch-controller">
-    <div class="t-dpad">
-      <button class="t-btn" id="touch-up">↑</button>
-      <div class="t-row">
-        <button class="t-btn" id="touch-left">←</button>
-        <button class="t-btn" id="touch-right">→</button>
+    <!-- Keybinds Modal -->
+    <div id="keybinds-modal"
+      class="hidden absolute inset-0 bg-black/80 z-[60] flex-col items-center justify-center backdrop-blur-sm p-4">
+      <div class="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-xs w-full shadow-2xl relative">
+        <button id="close-keybinds-btn"
+          class="absolute top-4 right-4 text-gray-500 hover:text-white text-xl font-bold p-1">✕</button>
+        <h3 class="text-lg font-bold mb-6 text-white text-center">Keyboard Controls</h3>
+
+        <div class="space-y-4 text-sm text-gray-300">
+          <div class="flex justify-between items-center border-b border-gray-800/50 pb-2">
+            <span class="font-medium text-gray-400">D-Pad</span>
+            <span class="font-bold text-white bg-gray-800 border border-gray-700 px-2 py-1 rounded shadow-inner">Arrow
+              Keys</span>
+          </div>
+          <div class="flex justify-between items-center border-b border-gray-800/50 pb-2">
+            <span class="font-medium text-gray-400">A Button</span>
+            <span
+              class="font-bold text-white bg-gray-800 border border-gray-700 px-2 py-1 rounded shadow-inner">Z</span>
+          </div>
+          <div class="flex justify-between items-center border-b border-gray-800/50 pb-2">
+            <span class="font-medium text-gray-400">B Button</span>
+            <span
+              class="font-bold text-white bg-gray-800 border border-gray-700 px-2 py-1 rounded shadow-inner">X</span>
+          </div>
+          <div class="flex justify-between items-center border-b border-gray-800/50 pb-2">
+            <span class="font-medium text-gray-400">Start</span>
+            <span
+              class="font-bold text-white bg-gray-800 border border-gray-700 px-2 py-1 rounded shadow-inner">Enter</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="font-medium text-gray-400">Select</span>
+            <span
+              class="font-bold text-white bg-gray-800 border border-gray-700 px-2 py-1 rounded shadow-inner">Space</span>
+          </div>
+        </div>
       </div>
-      <button class="t-btn" id="touch-down">↓</button>
     </div>
-    <div class="t-meta">
-      <button class="t-btn t-sm" id="touch-select">SEL</button>
-      <button class="t-btn t-sm" id="touch-start">STA</button>
+
+    <!-- Screen -->
+    <div
+      class="relative w-full max-w-4xl aspect-[256/240] bg-black rounded overflow-hidden flex-shrink-0 shadow-2xl mt-12"
+      style="max-height: 80vh;">
+      <canvas id="nes-canvas" width="256" height="240" class="w-full h-full object-contain pixelated"></canvas>
     </div>
-    <div class="t-face">
-      <button class="t-btn t-face-b" id="touch-b">B</button>
-      <button class="t-btn t-face-a" id="touch-a">A</button>
+
+    <!-- Mobile On-Screen Controls -->
+    <!-- Managed by JS based on user preference and screen size -->
+    <div id="mobile-controls"
+      class="hidden fixed bottom-6 w-full max-w-sm px-6 justify-between items-end z-40 touch-none">
+
+      <!-- D-Pad -->
+      <div class="relative w-32 h-32 opacity-80">
+        <div
+          class="absolute top-0 left-1/3 w-1/3 h-1/3 bg-gray-700 rounded-t active:bg-gray-500 control-btn flex items-center justify-center text-gray-400"
+          data-btn="up">▲</div>
+        <div
+          class="absolute bottom-0 left-1/3 w-1/3 h-1/3 bg-gray-700 rounded-b active:bg-gray-500 control-btn flex items-center justify-center text-gray-400"
+          data-btn="down">▼</div>
+        <div
+          class="absolute top-1/3 left-0 w-1/3 h-1/3 bg-gray-700 rounded-l active:bg-gray-500 control-btn flex items-center justify-center text-gray-400"
+          data-btn="left">◀</div>
+        <div
+          class="absolute top-1/3 right-0 w-1/3 h-1/3 bg-gray-700 rounded-r active:bg-gray-500 control-btn flex items-center justify-center text-gray-400"
+          data-btn="right">▶</div>
+        <div class="absolute top-1/3 left-1/3 w-1/3 h-1/3 bg-gray-800"></div> <!-- Center piece -->
+      </div>
+
+      <div class="flex flex-col items-center gap-6 mb-2 opacity-80">
+        <!-- Start/Select -->
+        <div class="flex gap-4">
+          <div
+            class="w-12 h-5 bg-gray-700 rounded-full active:bg-gray-500 control-btn flex items-center justify-center text-[10px] font-bold text-gray-300 tracking-wider"
+            data-btn="select">SEL</div>
+          <div
+            class="w-12 h-5 bg-gray-700 rounded-full active:bg-gray-500 control-btn flex items-center justify-center text-[10px] font-bold text-gray-300 tracking-wider"
+            data-btn="start">START</div>
+        </div>
+
+        <!-- A/B Buttons -->
+        <div class="flex gap-4">
+          <div
+            class="w-14 h-14 bg-red-800 rounded-full active:bg-red-600 control-btn flex items-center justify-center font-bold text-gray-200 mt-4"
+            data-btn="b">B</div>
+          <div
+            class="w-14 h-14 bg-red-800 rounded-full active:bg-red-600 control-btn flex items-center justify-center font-bold text-gray-200 mt-[-8px]"
+            data-btn="a">A</div>
+        </div>
+      </div>
     </div>
   </div>
 
   <script src="script.js"></script>
 </body>
+
 </html>
