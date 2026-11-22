@@ -16,7 +16,6 @@ libnes/         - Core emulation library (Odin)
 
 raynes/         - Desktop frontend (Odin + Raylib)
 flutter_nes/    - Flutter frontend suppots Linux, Windows, Android, Ios
-ttynes/         - Terminal frontend
 webnes/         - Web frontend
 ```
 
@@ -53,8 +52,6 @@ make raynes
 **raynes** — Raylib-based desktop frontend. Runs directly with `make raynes`.
 
 **flutter_nes** — Flutter app (Linux/Windows + Android + Ios). Links `libnes` via `dart:ffi`. Emulation runs in a dedicated isolate. Supports a game library (Hive), light/dark theme, and on-screen controller.
-
-**ttynes** — Terminal renderer.
 
 **webnes** — https://mouhamedbourouba.github.io/NesEmulator/  
 
